@@ -35,7 +35,7 @@ class MyHomePage extends StatefulWidget {
   final String user1ID = 'user1';
   final String user2ID = 'user2';
 
-  // Get your template token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project
+  // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   final String tokenForUser1JoinRoom = '';
   final String tokenForUser2JoinRoom = '';
 
