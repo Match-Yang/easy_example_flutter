@@ -1,4 +1,9 @@
+import 'dart:developer';
+
+import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:zego_express_engine/zego_express_engine.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,102 +18,180 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({Key? key}) : super(key: key);
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  // Test data
+  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+  final int appID = 1166801465;
+  final String roomID = '123456';
+  final String user1ID = 'user1';
+  final String user2ID = 'user2';
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  // Get your template token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project
+  final String tokenForUser1JoinRoom = '';
+  final String tokenForUser2JoinRoom = '';
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  Widget _bigView = Container(
+    color: Colors.red,
+  );
+  Widget _smallView = Container(
+    color: Colors.green,
+  );
+  bool _user1Pressed = false;
+  bool _user2Pressed = false;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    ZegoExpressManager.shared.createEngine(widget.appID);
+    ZegoExpressManager.shared.onRoomUserUpdate =
+        (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
+      if (updateType == ZegoUpdateType.Add) {
+        for (final userID in userIDList) {
+          if (!ZegoExpressManager.shared.isLocalUser(userID)) {
+            setState(() {
+              _smallView =
+                  ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            });
+          }
+        }
+      }
+    };
+    ZegoExpressManager.shared.onRoomUserDeviceUpdate =
+        (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
+    ZegoExpressManager.shared.onRoomTokenWillExpire =
+        (int remainTimeInSecond, String roomID) {
+      // TODO You need to request a new token when this callback is trigger
+    };
+    super.initState();
+  }
+
+  Future<void> requestCameraPermission() async {
+    PermissionStatus cameraStatus = await Permission.camera.request();
+    log('cameraStatus: $cameraStatus');
+  }
+
+  Future<void> requestMicrophonePermission() async {
+    PermissionStatus microphoneStatus = await Permission.microphone.request();
+    log('microphoneStatus: $microphoneStatus');
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+            SizedBox.expand(
+              child: _bigView,
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+            Positioned(
+                top: 100,
+                right: 0,
+                child: SizedBox(
+                  width: 180,
+                  height: 360,
+                  child: _smallView,
+                )),
+            Positioned(
+                bottom: 40,
+                left: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _user2Pressed
+                        ? Container()
+                        : ElevatedButton(
+                            child: Text(_user1Pressed
+                                ? 'Leave Room'
+                                : 'Join Room as User1'),
+                            onPressed: () {
+                              if (_user1Pressed) {
+                                ZegoExpressManager.shared.leaveRoom();
+                                setState(() {
+                                  _bigView = Container(
+                                    color: Colors.red,
+                                  );
+                                  _smallView = Container(
+                                    color: Colors.blue,
+                                  );
+                                  _user1Pressed = false;
+                                });
+                              } else {
+                                requestMicrophonePermission();
+                                requestCameraPermission();
+                                ZegoExpressManager.shared.joinRoom(
+                                    widget.roomID,
+                                    ZegoUser(widget.user1ID, widget.user1ID),
+                                    widget.tokenForUser1JoinRoom, [
+                                  ZegoMediaOption.publishLocalAudio,
+                                  ZegoMediaOption.publishLocalVideo,
+                                  ZegoMediaOption.autoPlayAudio,
+                                  ZegoMediaOption.autoPlayVideo
+                                ]);
+                                setState(() {
+                                  _bigView = ZegoExpressManager.shared
+                                      .getLocalVideoView()!;
+                                  _user1Pressed = true;
+                                });
+                              }
+                            },
+                          ),
+                    _user1Pressed
+                        ? Container()
+                        : ElevatedButton(
+                            child: Text(_user2Pressed
+                                ? 'Leave Room'
+                                : 'Join Room as User2'),
+                            onPressed: () {
+                              if (_user2Pressed) {
+                                ZegoExpressManager.shared.leaveRoom();
+                                setState(() {
+                                  _bigView = Container(
+                                    color: Colors.red,
+                                  );
+                                  _smallView = Container(
+                                    color: Colors.blue,
+                                  );
+                                  _user2Pressed = false;
+                                });
+                              } else {
+                                requestMicrophonePermission();
+                                requestCameraPermission();
+                                ZegoExpressManager.shared.joinRoom(
+                                    widget.roomID,
+                                    ZegoUser(widget.user2ID, widget.user2ID),
+                                    widget.tokenForUser2JoinRoom, [
+                                  ZegoMediaOption.publishLocalAudio,
+                                  ZegoMediaOption.publishLocalVideo,
+                                  ZegoMediaOption.autoPlayAudio,
+                                  ZegoMediaOption.autoPlayVideo
+                                ]);
+                                setState(() {
+                                  _bigView = ZegoExpressManager.shared
+                                      .getLocalVideoView()!;
+                                  _user2Pressed = true;
+                                });
+                              }
+                            },
+                          ),
+                  ],
+                )),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }

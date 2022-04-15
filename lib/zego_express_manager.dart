@@ -60,6 +60,10 @@ class ZegoExpressManager {
     ZegoMediaOption.autoPlayVideo
   ];
 
+  bool isLocalUser(String userID) {
+    return userID.isNotEmpty && userID == _localParticipant.userID;
+  }
+
   void createEngine(int appID) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
@@ -264,8 +268,16 @@ class ZegoExpressManager {
   }
 
   void leaveRoom() {
+    ZegoExpressEngine.instance.stopPublishingStream();
+    ZegoExpressEngine.instance.stopPreview();
+    _participantDic.forEach((_, participant) {
+      if (participant.viewID != -1) {
+        ZegoExpressEngine.instance.destroyPlatformView(participant.viewID);
+      }
+    });
     _participantDic.clear();
     _streamDic.clear();
+    _roomID = '';
     ZegoExpressEngine.instance.logoutRoom();
   }
 
@@ -285,11 +297,14 @@ class ZegoExpressManager {
     if (_mediaOptions.contains(ZegoMediaOption.autoPlayVideo) ||
         _mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
       ZegoParticipant? participant = _streamDic[streamID];
-      if (participant?.viewID == -1) {
+      if (participant == null) {
+        return;
+      }
+      if (participant.viewID == -1) {
         log("Error [_playStream] view id is empty!");
         return;
       }
-      ZegoCanvas canvas = ZegoCanvas.view(participant!.viewID);
+      ZegoCanvas canvas = ZegoCanvas.view(participant.viewID);
       ZegoExpressEngine.instance.startPlayingStream(streamID, canvas: canvas);
       if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
         ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
@@ -306,6 +321,6 @@ class ZegoExpressManager {
       description =
           "=======\nYou can view the exact cause of the error through the link below \n https://doc-zh.zego.im/article/4377?w=$errorCode\n=======";
     }
-    log("[$methodName]: state:$state errorCode:$Icons.error\n$description");
+    log("[$methodName]: state:$state errorCode:$errorCode\n$description");
   }
 }
