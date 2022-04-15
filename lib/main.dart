@@ -36,6 +36,7 @@ class MyHomePage extends StatefulWidget {
   final String user2ID = 'user2';
 
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
+  // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
   final String tokenForUser1JoinRoom = '';
   final String tokenForUser2JoinRoom = '';
 
@@ -78,14 +79,14 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-  Future<void> requestCameraPermission() async {
+  Future<PermissionStatus> requestCameraPermission() async {
     PermissionStatus cameraStatus = await Permission.camera.request();
-    log('cameraStatus: $cameraStatus');
+    return cameraStatus;
   }
 
-  Future<void> requestMicrophonePermission() async {
+  Future<PermissionStatus> requestMicrophonePermission() async {
     PermissionStatus microphoneStatus = await Permission.microphone.request();
-    log('microphoneStatus: $microphoneStatus');
+    return microphoneStatus;
   }
 
   @override
@@ -118,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Text(_user1Pressed
                                 ? 'Leave Room'
                                 : 'Join Room as User1'),
-                            onPressed: () {
+                            onPressed: () async {
                               if (_user1Pressed) {
                                 ZegoExpressManager.shared.leaveRoom();
                                 setState(() {
@@ -131,8 +132,19 @@ class _MyHomePageState extends State<MyHomePage> {
                                   _user1Pressed = false;
                                 });
                               } else {
-                                requestMicrophonePermission();
-                                requestCameraPermission();
+                                var micPermission =
+                                    await requestMicrophonePermission();
+                                if (micPermission != PermissionStatus.granted) {
+                                  return;
+                                }
+                                var cameraPermission =
+                                    await requestCameraPermission();
+                                if (cameraPermission !=
+                                    PermissionStatus.granted) {
+                                  return;
+                                }
+                                assert(widget.tokenForUser1JoinRoom.isNotEmpty,
+                                    "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
                                 ZegoExpressManager.shared.joinRoom(
                                     widget.roomID,
                                     ZegoUser(widget.user1ID, widget.user1ID),
@@ -156,7 +168,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Text(_user2Pressed
                                 ? 'Leave Room'
                                 : 'Join Room as User2'),
-                            onPressed: () {
+                            onPressed: () async {
                               if (_user2Pressed) {
                                 ZegoExpressManager.shared.leaveRoom();
                                 setState(() {
@@ -169,8 +181,19 @@ class _MyHomePageState extends State<MyHomePage> {
                                   _user2Pressed = false;
                                 });
                               } else {
-                                requestMicrophonePermission();
-                                requestCameraPermission();
+                                var micPermission =
+                                    await requestMicrophonePermission();
+                                if (micPermission != PermissionStatus.granted) {
+                                  return;
+                                }
+                                var cameraPermission =
+                                    await requestCameraPermission();
+                                if (cameraPermission !=
+                                    PermissionStatus.granted) {
+                                  return;
+                                }
+                                assert(widget.tokenForUser2JoinRoom.isNotEmpty,
+                                    "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
                                 ZegoExpressManager.shared.joinRoom(
                                     widget.roomID,
                                     ZegoUser(widget.user2ID, widget.user2ID),

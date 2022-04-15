@@ -56,7 +56,7 @@ $ flutter doctor
 
 ### Grant permission
 
-You need to grant the network access, camera and microphone permission to make our SDK work as escepet.
+You need to grant the network access, camera, and microphone permission to make your SDK work as except.
 
 #### For Android
 
