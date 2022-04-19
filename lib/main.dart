@@ -20,39 +20,84 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      initialRoute: '/home_page',
+      routes: {
+        '/home_page': (context) => HomePage(),
+        '/call_page': (context) => CallPage(),
+      },
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key}) : super(key: key);
-
-  // Test data
-  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 1166801465;
-  final String roomID = '123456';
-  final String user1ID = 'user1';
-  final String user2ID = 'user2';
-
+class HomePage extends StatelessWidget {
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
-  final String tokenForUser1JoinRoom = '';
-  final String tokenForUser2JoinRoom = '';
+  final Map<String, String> user1Arguments = {'userID': 'user1', 'token': ''};
+  final Map<String, String> user2Arguments = {'userID': 'user2', 'token': ''};
+
+  Future<bool> requestPermission() async {
+    PermissionStatus microphoneStatus = await Permission.microphone.request();
+    if (microphoneStatus != PermissionStatus.granted) {
+      log('Error: Microphone permission not granted!!!');
+      return false;
+    }
+    PermissionStatus cameraStatus = await Permission.camera.request();
+    if (cameraStatus != PermissionStatus.granted) {
+      log('Error: Camera permission not granted!!!');
+      return false;
+    }
+    return true;
+  }
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          TextButton(
+              onPressed: () async {
+                await requestPermission();
+                Navigator.pushReplacementNamed(context, '/call_page',
+                    arguments: user1Arguments);
+              },
+              child: const Text('Join Room As User1')),
+          TextButton(
+              onPressed: () async {
+                await requestPermission();
+                Navigator.pushReplacementNamed(context, '/call_page',
+                    arguments: user2Arguments);
+              },
+              child: const Text('Join Room As User2')),
+        ],
+      ),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class CallPage extends StatefulWidget {
+  const CallPage({Key? key}) : super(key: key);
+
+  // TODO Test data
+  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+  final int appID = 0;
+  final String roomID = '123456';
+
+  @override
+  State<CallPage> createState() => _CallPageState();
+}
+
+class _CallPageState extends State<CallPage> {
   Widget _bigView = Container(
-    color: Colors.red,
+    color: Colors.white,
   );
   Widget _smallView = Container(
-    color: Colors.green,
+    color: Colors.black54,
   );
-  bool _user1Pressed = false;
-  bool _user2Pressed = false;
+  bool _joinedRoom = false;
+  bool _micEnable = true;
+  bool _cameraEnable = true;
 
   @override
   void initState() {
@@ -79,14 +124,30 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-  Future<PermissionStatus> requestCameraPermission() async {
-    PermissionStatus cameraStatus = await Permission.camera.request();
-    return cameraStatus;
-  }
-
-  Future<PermissionStatus> requestMicrophonePermission() async {
-    PermissionStatus microphoneStatus = await Permission.microphone.request();
-    return microphoneStatus;
+  @override
+  void didChangeDependencies() {
+    RouteSettings settings = ModalRoute.of(context)!.settings;
+    if (settings.arguments != null) {
+      Map<String, String> obj = settings.arguments as Map<String, String>;
+      var userID = obj['userID'] ?? "";
+      var token = obj['token'] ?? "";
+      if (!_joinedRoom) {
+        assert(token.isNotEmpty,
+            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
+        ZegoExpressManager.shared
+            .joinRoom(widget.roomID, ZegoUser(userID, userID), token, [
+          ZegoMediaOption.publishLocalAudio,
+          ZegoMediaOption.publishLocalVideo,
+          ZegoMediaOption.autoPlayAudio,
+          ZegoMediaOption.autoPlayVideo
+        ]);
+        setState(() {
+          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
+          _joinedRoom = true;
+        });
+      }
+    }
+    super.didChangeDependencies();
   }
 
   @override
@@ -100,117 +161,83 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Positioned(
                 top: 100,
-                right: 0,
+                right: 16,
                 child: SizedBox(
-                  width: 180,
-                  height: 360,
+                  width: 114,
+                  height: 170,
                   child: _smallView,
                 )),
             Positioned(
-                bottom: 40,
+                bottom: 100,
                 left: 0,
+                right: 0,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _user2Pressed
-                        ? Container()
-                        : ElevatedButton(
-                            child: Text(_user1Pressed
-                                ? 'Leave Room'
-                                : 'Join Room as User1'),
-                            onPressed: () async {
-                              if (_user1Pressed) {
-                                ZegoExpressManager.shared.leaveRoom();
-                                setState(() {
-                                  _bigView = Container(
-                                    color: Colors.red,
-                                  );
-                                  _smallView = Container(
-                                    color: Colors.blue,
-                                  );
-                                  _user1Pressed = false;
-                                });
-                              } else {
-                                var micPermission =
-                                    await requestMicrophonePermission();
-                                if (micPermission != PermissionStatus.granted) {
-                                  return;
-                                }
-                                var cameraPermission =
-                                    await requestCameraPermission();
-                                if (cameraPermission !=
-                                    PermissionStatus.granted) {
-                                  return;
-                                }
-                                assert(widget.tokenForUser1JoinRoom.isNotEmpty,
-                                    "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-                                ZegoExpressManager.shared.joinRoom(
-                                    widget.roomID,
-                                    ZegoUser(widget.user1ID, widget.user1ID),
-                                    widget.tokenForUser1JoinRoom, [
-                                  ZegoMediaOption.publishLocalAudio,
-                                  ZegoMediaOption.publishLocalVideo,
-                                  ZegoMediaOption.autoPlayAudio,
-                                  ZegoMediaOption.autoPlayVideo
-                                ]);
-                                setState(() {
-                                  _bigView = ZegoExpressManager.shared
-                                      .getLocalVideoView()!;
-                                  _user1Pressed = true;
-                                });
-                              }
-                            },
-                          ),
-                    _user1Pressed
-                        ? Container()
-                        : ElevatedButton(
-                            child: Text(_user2Pressed
-                                ? 'Leave Room'
-                                : 'Join Room as User2'),
-                            onPressed: () async {
-                              if (_user2Pressed) {
-                                ZegoExpressManager.shared.leaveRoom();
-                                setState(() {
-                                  _bigView = Container(
-                                    color: Colors.red,
-                                  );
-                                  _smallView = Container(
-                                    color: Colors.blue,
-                                  );
-                                  _user2Pressed = false;
-                                });
-                              } else {
-                                var micPermission =
-                                    await requestMicrophonePermission();
-                                if (micPermission != PermissionStatus.granted) {
-                                  return;
-                                }
-                                var cameraPermission =
-                                    await requestCameraPermission();
-                                if (cameraPermission !=
-                                    PermissionStatus.granted) {
-                                  return;
-                                }
-                                assert(widget.tokenForUser2JoinRoom.isNotEmpty,
-                                    "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-                                ZegoExpressManager.shared.joinRoom(
-                                    widget.roomID,
-                                    ZegoUser(widget.user2ID, widget.user2ID),
-                                    widget.tokenForUser2JoinRoom, [
-                                  ZegoMediaOption.publishLocalAudio,
-                                  ZegoMediaOption.publishLocalVideo,
-                                  ZegoMediaOption.autoPlayAudio,
-                                  ZegoMediaOption.autoPlayVideo
-                                ]);
-                                setState(() {
-                                  _bigView = ZegoExpressManager.shared
-                                      .getLocalVideoView()!;
-                                  _user2Pressed = true;
-                                });
-                              }
-                            },
-                          ),
+                    // Microphone control button
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.black26,
+                      ),
+                      child: Icon(
+                        _micEnable ? Icons.mic : Icons.mic_off,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        ZegoExpressManager.shared.enableMic(!_micEnable);
+                        setState(() {
+                          _micEnable = !_micEnable;
+                        });
+                      },
+                    ),
+                    // End call button
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.red,
+                      ),
+                      child: const Icon(
+                        Icons.call_end,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        ZegoExpressManager.shared.leaveRoom();
+                        setState(() {
+                          _bigView = Container(
+                            color: Colors.white,
+                          );
+                          _smallView = Container(
+                            color: Colors.black54,
+                          );
+                          _joinedRoom = false;
+                        });
+                        // Back to home page
+                        Navigator.pushReplacementNamed(context, '/home_page');
+                      },
+                    ),
+                    // Camera control button
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.black26,
+                      ),
+                      child: Icon(
+                        _cameraEnable
+                            ? Icons.camera_alt
+                            : Icons.camera_alt_outlined,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        ZegoExpressManager.shared.enableCamera(!_cameraEnable);
+                        setState(() {
+                          _cameraEnable = !_cameraEnable;
+                        });
+                      },
+                    ),
                   ],
                 )),
           ],

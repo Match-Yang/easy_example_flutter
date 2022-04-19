@@ -41,7 +41,7 @@ $ flutter doctor
 1. Open the easy_example_flutter project in Android Studio.
 2. Make sure the **developer mode** and **USB debugging** are enabled for the Android device, and connect the Android device to your computer.
 3. If the **Running Devices** box in the upper area changes to the device name you are using, which means you are ready to run the sample code.
-4. Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project for both User1 and User2.
+4. Get your AppID and temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project for both User1 and User2.
    ![image](docs/images/generate_token.gif)
    ![image](docs/images/setup_token.jpg)
 5. Run the sample code on your device to experience the easy_example_flutter.
@@ -53,6 +53,21 @@ $ flutter doctor
 `$ flutter pub add zego_express_engine`
 
 `$ flutter pub get`
+### Turn off some classes's confusion
+
+To prevent the ZEGO SDK public class names from being obfuscated, please complete the following steps:
+
+1. Create `proguard-rules.pro` file under [your_project > android > app] with content as show below:
+```
+-keep class **.zego.**  { *; }
+```
+![image](docs/images/proguard_rules_file.jpg)
+
+2. Add config code to `android/app/build.gradle` for release build:
+```
+proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+```
+![image](docs/images/proguard_rules_config.jpg)
 
 ### Grant permission
 
