@@ -5,6 +5,7 @@ import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() {
   runApp(const MyApp());
@@ -33,8 +34,18 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatelessWidget {
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
-  final Map<String, String> user1Arguments = {'userID': 'user1', 'token': ''};
-  final Map<String, String> user2Arguments = {'userID': 'user2', 'token': ''};
+  final Map<String, String> user1Arguments = {
+    'userID': 'user1',
+    'token':
+        ''
+  };
+  final Map<String, String> user2Arguments = {
+    'userID': 'user2',
+    'token':
+        ''
+  };
+
+  HomePage({Key? key}) : super(key: key);
 
   Future<bool> requestPermission() async {
     PermissionStatus microphoneStatus = await Permission.microphone.request();
@@ -59,14 +70,18 @@ class HomePage extends StatelessWidget {
         children: [
           TextButton(
               onPressed: () async {
-                // await requestPermission();
+                if (!kIsWeb) {
+                  await requestPermission();
+                }
                 Navigator.pushReplacementNamed(context, '/call_page',
                     arguments: user1Arguments);
               },
               child: const Text('Join Room As User1')),
           TextButton(
               onPressed: () async {
-                // await requestPermission();
+                if (!kIsWeb) {
+                  await requestPermission();
+                }
                 Navigator.pushReplacementNamed(context, '/call_page',
                     arguments: user2Arguments);
               },
@@ -84,7 +99,7 @@ class CallPage extends StatefulWidget {
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
   final String roomID = '123456';
-  final String server = 'wss://webliveroom2553239306-api.zegocloud.com/ws';
+  final String server = '';
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -103,14 +118,14 @@ class _CallPageState extends State<CallPage> {
 
   @override
   void initState() {
-    ZegoExpressManager.shared.createEngine(widget.appID, serverUrl: widget.server);
+    ZegoExpressManager.shared
+        .createEngine(widget.appID, serverUrl: widget.server);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
           setState(() {
-            _smallView =
-            ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
           });
         }
       }
