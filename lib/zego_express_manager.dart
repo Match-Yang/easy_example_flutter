@@ -60,10 +60,6 @@ class ZegoExpressManager {
     ZegoMediaOption.autoPlayVideo
   ];
 
-  bool isLocalUser(String userID) {
-    return userID.isNotEmpty && userID == _localParticipant.userID;
-  }
-
   void createEngine(int appID) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication

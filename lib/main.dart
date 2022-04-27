@@ -106,12 +106,10 @@ class _CallPageState extends State<CallPage> {
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
-          if (!ZegoExpressManager.shared.isLocalUser(userID)) {
-            setState(() {
-              _smallView =
-                  ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-            });
-          }
+          setState(() {
+            _smallView =
+            ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+          });
         }
       }
     };
