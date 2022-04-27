@@ -88,9 +88,10 @@ class CallPage extends StatefulWidget {
   const CallPage({Key? key}) : super(key: key);
 
   // TODO Test data
-  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+  // Get your AppID and ServerUrl from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
   final String roomID = '123456';
+  // serverUrl is for web only
   final String serverUrl = '';
 
   @override
@@ -143,7 +144,7 @@ class _CallPageState extends State<CallPage> {
             "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         ZegoExpressManager.shared
             .joinRoom(widget.roomID, ZegoUser(userID, userID), token, [
-          // ZegoMediaOption.publishLocalAudio,
+          ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
           ZegoMediaOption.autoPlayVideo
