@@ -47,6 +47,7 @@ $ flutter doctor
 5. Run the sample code on your device to experience the easy_example_flutter.
 
 ## Integrate the SDK into your project
+[![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
 
 ### Add zego_express_engine into your project
 
