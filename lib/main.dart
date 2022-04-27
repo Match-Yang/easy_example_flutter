@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'platform_impl/types.dart';
 import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -58,14 +59,14 @@ class HomePage extends StatelessWidget {
         children: [
           TextButton(
               onPressed: () async {
-                await requestPermission();
+                // await requestPermission();
                 Navigator.pushReplacementNamed(context, '/call_page',
                     arguments: user1Arguments);
               },
               child: const Text('Join Room As User1')),
           TextButton(
               onPressed: () async {
-                await requestPermission();
+                // await requestPermission();
                 Navigator.pushReplacementNamed(context, '/call_page',
                     arguments: user2Arguments);
               },
@@ -83,6 +84,7 @@ class CallPage extends StatefulWidget {
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
   final String roomID = '123456';
+  final String server = 'wss://webliveroom2553239306-api.zegocloud.com/ws';
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -101,17 +103,15 @@ class _CallPageState extends State<CallPage> {
 
   @override
   void initState() {
-    ZegoExpressManager.shared.createEngine(widget.appID);
+    ZegoExpressManager.shared.createEngine(widget.appID, serverUrl: widget.server);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
-          if (!ZegoExpressManager.shared.isLocalUser(userID)) {
-            setState(() {
-              _smallView =
-                  ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-            });
-          }
+          setState(() {
+            _smallView =
+            ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+          });
         }
       }
     };
@@ -136,7 +136,7 @@ class _CallPageState extends State<CallPage> {
             "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         ZegoExpressManager.shared
             .joinRoom(widget.roomID, ZegoUser(userID, userID), token, [
-          ZegoMediaOption.publishLocalAudio,
+          // ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
           ZegoMediaOption.autoPlayVideo
