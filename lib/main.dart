@@ -34,16 +34,8 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatelessWidget {
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
-  final Map<String, String> user1Arguments = {
-    'userID': 'user1',
-    'token':
-        ''
-  };
-  final Map<String, String> user2Arguments = {
-    'userID': 'user2',
-    'token':
-        ''
-  };
+  final Map<String, String> user1Arguments = {'userID': 'user1', 'token': ''};
+  final Map<String, String> user2Arguments = {'userID': 'user2', 'token': ''};
 
   HomePage({Key? key}) : super(key: key);
 
@@ -99,7 +91,7 @@ class CallPage extends StatefulWidget {
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
   final String roomID = '123456';
-  final String server = '';
+  final String serverUrl = '';
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -119,7 +111,7 @@ class _CallPageState extends State<CallPage> {
   @override
   void initState() {
     ZegoExpressManager.shared
-        .createEngine(widget.appID, serverUrl: widget.server);
+        .createEngine(widget.appID, serverUrl: widget.serverUrl);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {

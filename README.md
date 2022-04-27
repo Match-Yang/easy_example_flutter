@@ -41,12 +41,13 @@ $ flutter doctor
 1. Open the easy_example_flutter project in Android Studio.
 2. Make sure the **developer mode** and **USB debugging** are enabled for the Android device, and connect the Android device to your computer.
 3. If the **Running Devices** box in the upper area changes to the device name you are using, which means you are ready to run the sample code.
-4. Get your AppID and temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project for both User1 and User2.
+4. Get your AppID, ServerURL(If you need to build for web) and temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project for both User1 and User2.
    ![image](docs/images/generate_token.gif)
    ![image](docs/images/setup_token.jpg)
 5. Run the sample code on your device to experience the easy_example_flutter.
 
 ## Integrate the SDK into your project
+[![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
 
 ### Add zego_express_engine into your project
 
@@ -104,9 +105,22 @@ Open [your_project > ios > Runner > Info.plist] and add the lines below inside t
    ...
 ```
 
-### Copy `ZegoExpressManager` source code to your project
+### Copy source code to your project
 
-Copy `zego_express_manager.dart` file to [your_project > lib] folder.
+Copy `zego_express_manager.dart` file and `platform_impl` folder to [your_project > lib] folder.
+
+#### For web
+
+Copy `[exay_example_flutter > web > js]` folder to your project at the same place.
+
+Add this line of code `<script src="./js/ZegoExpressManager.js"></script>` to the index.html inside head tag.
+```html
+  <title>easy_example_flutter</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="./js/ZegoExpressManager.js"></script> <!--Add this line-->
+</head>
+<body>
+```
 
 ### Method call
 
@@ -211,4 +225,11 @@ When you want to leave the room, you can call the leaveroom interface.
 onPressed: () {
   if (_user1Pressed) {
     ZegoExpressManager.shared.leaveRoom();
+```
+
+### Build & Release
+
+#### For web
+```bash
+$ flutter build web --profile --dart-define=Dart2jsOptimization=O0
 ```
