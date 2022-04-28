@@ -5,7 +5,6 @@ import 'dart:html';
 import 'package:js/js.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 
-
 typedef ZegoMediaOptions = List<ZegoMediaOption>;
 
 enum ZegoMediaOption {
@@ -48,7 +47,7 @@ class ZegoExpressManager {
   external Future<bool> checkCamera();
   external Future<bool> checkMicrophone();
   external Future<bool> joinRoom(
-      String roomID, String token, ZegoUser user, ZegoMediaOptions options);
+      String roomID, String token, String user, ZegoMediaOptions options);
   external bool enableCamera(bool enable);
   external bool enableMic(bool enable);
   external VideoElement getLocalVideoView();

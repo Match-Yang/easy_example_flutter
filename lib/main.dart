@@ -88,10 +88,9 @@ class CallPage extends StatefulWidget {
   const CallPage({Key? key}) : super(key: key);
 
   // TODO Test data
-  // Get your AppID and ServerUrl from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
   final String roomID = '123456';
-  // serverUrl is for web only
   final String serverUrl = '';
 
   @override
