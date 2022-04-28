@@ -1,4 +1,5 @@
 # ZEGOCLOUD easy example
+
 ZEGOCLOUD's easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
 
 ## Getting started
@@ -33,6 +34,7 @@ $ flutter doctor
 ```
 
 ![image](docs/images/flutter_doctor.png)
+
 * If the Android development environment is ready, the **Android toolchain** item shows a ready state.
 * If the iOS development environment is ready, the **Xcode**  item shows a ready state.
 
@@ -47,6 +49,7 @@ $ flutter doctor
 5. Run the sample code on your device to experience the easy_example_flutter.
 
 ## Integrate the SDK into your project
+
 [![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
 
 ### Add zego_express_engine into your project
@@ -54,20 +57,25 @@ $ flutter doctor
 `$ flutter pub add zego_express_engine`
 
 `$ flutter pub get`
+
 ### Turn off some classes's confusion
 
 To prevent the ZEGO SDK public class names from being obfuscated, please complete the following steps:
 
 1. Create `proguard-rules.pro` file under [your_project > android > app] with content as show below:
+
 ```
 -keep class **.zego.**  { *; }
 ```
+
 ![image](docs/images/proguard_rules_file.jpg)
 
 2. Add config code to `android/app/build.gradle` for release build:
+
 ```
 proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 ```
+
 ![image](docs/images/proguard_rules_config.jpg)
 
 ### Grant permission
@@ -78,6 +86,7 @@ You need to grant the network access, camera, and microphone permission to make 
 
 Open [your_project > android > app > src > main > AndroidManifest.xml] file and add the lines below out side the "application" tag:
 ![image](docs/images/android_add_permission.gif)
+
 ```xml
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -94,6 +103,7 @@ Open [your_project > android > app > src > main > AndroidManifest.xml] file and 
 
 Open [your_project > ios > Runner > Info.plist] and add the lines below inside the "dict" tag:
 ![image](docs/images/ios_add_permission.gif)
+
 ```xml
 ...
 <dict>
@@ -114,6 +124,7 @@ Copy `zego_express_manager.dart` file and `platform_impl` folder to [your_projec
 Copy `[exay_example_flutter > web > js]` folder to your project at the same place.
 
 Add this line of code `<script src="./js/ZegoExpressManager.js"></script>` to the index.html inside head tag.
+
 ```html
   <title>easy_example_flutter</title>
   <link rel="manifest" href="manifest.json">
@@ -183,6 +194,7 @@ If your project needs to use the video communication functionality, you need to 
 **getLocalVideoView**
 
 Call this method after join room
+
 ```js
 ...
 
@@ -219,6 +231,7 @@ void initState() {
 ```
 
 #### Leave room
+
 When you want to leave the room, you can call the leaveroom interface.
 
 ```js
@@ -230,6 +243,7 @@ onPressed: () {
 ### Build & Release
 
 #### For web
+
 ```bash
-$ flutter build web --profile --dart-define=Dart2jsOptimization=O0
+$ flutter build web --profile
 ```
