@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -30,10 +34,18 @@ class MyApp extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
-  // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
-  // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
-  final Map<String, String> user1Arguments = {'userID': 'user1', 'token': ''};
-  final Map<String, String> user2Arguments = {'userID': 'user2', 'token': ''};
+  // TODO Test data <<<<<<<<<<<<<<
+  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+  final int appID = 0;
+
+  // This room id for test only
+  final String roomID = '123456';
+
+  // Heroku server url for example
+  // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+  final String tokenServerUrl = ''; // https://xxx.herokuapp.com
+
+  // TODO Test data >>>>>>>>>>>>>>
 
   Future<bool> requestPermission() async {
     PermissionStatus microphoneStatus = await Permission.microphone.request();
@@ -49,27 +61,48 @@ class HomePage extends StatelessWidget {
     return true;
   }
 
+  // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
+  // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
+  Future<String> getToken(String userID) async {
+    final response =
+        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
+    if (response.statusCode == 200) {
+      final jsonObj = jsonDecode(response.body);
+      return jsonObj['token'];
+    } else {
+      return "";
+    }
+  }
+
+  Future<Map<String, String>> getJoinRoomArgs() async {
+    final userID = math.Random().nextInt(10000).toString();
+    final String token = await getToken(userID);
+    return {
+      'userID': userID,
+      'token': token,
+      'roomID': roomID,
+      'appID': appID.toString(),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      child: Row(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          TextButton(
+          const Text(
+            'ZEGOCLOUD',
+            style: TextStyle(fontSize: 30, color: Colors.blue),
+          ),
+          ElevatedButton(
               onPressed: () async {
                 await requestPermission();
                 Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: user1Arguments);
+                    arguments: await getJoinRoomArgs());
               },
-              child: const Text('Join Room As User1')),
-          TextButton(
-              onPressed: () async {
-                await requestPermission();
-                Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: user2Arguments);
-              },
-              child: const Text('Join Room As User2')),
+              child: const Text('Join Room')),
         ],
       ),
     );
@@ -78,11 +111,6 @@ class HomePage extends StatelessWidget {
 
 class CallPage extends StatefulWidget {
   const CallPage({Key? key}) : super(key: key);
-
-  // TODO Test data
-  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 0;
-  final String roomID = '123456';
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -99,16 +127,14 @@ class _CallPageState extends State<CallPage> {
   bool _micEnable = true;
   bool _cameraEnable = true;
 
-  @override
-  void initState() {
-    ZegoExpressManager.shared.createEngine(widget.appID);
+  void prepareSDK(int appID) {
+    ZegoExpressManager.shared.createEngine(appID);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
           setState(() {
-            _smallView =
-            ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
           });
         }
       }
@@ -119,21 +145,28 @@ class _CallPageState extends State<CallPage> {
         (int remainTimeInSecond, String roomID) {
       // TODO You need to request a new token when this callback is trigger
     };
-    super.initState();
   }
 
   @override
   void didChangeDependencies() {
     RouteSettings settings = ModalRoute.of(context)!.settings;
     if (settings.arguments != null) {
+      // Read arguments
       Map<String, String> obj = settings.arguments as Map<String, String>;
       var userID = obj['userID'] ?? "";
       var token = obj['token'] ?? "";
+      var roomID = obj['roomID'] ?? "";
+      var appID = int.parse(obj['appID'] ?? "0");
+
+      // Prepare SDK
+      prepareSDK(appID);
+
+      // Join room and wait for other...
       if (!_joinedRoom) {
         assert(token.isNotEmpty,
             "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         ZegoExpressManager.shared
-            .joinRoom(widget.roomID, ZegoUser(userID, userID), token, [
+            .joinRoom(roomID, ZegoUser(userID, userID), token, [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,

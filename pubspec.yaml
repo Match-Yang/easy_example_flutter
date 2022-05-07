@@ -35,6 +35,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   zego_express_engine: ^2.18.1
   permission_handler: ^9.2.0
+  http: ^0.13.4
 
 dev_dependencies:
   flutter_test:
