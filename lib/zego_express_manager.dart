@@ -253,17 +253,17 @@ class ZegoExpressManager {
       return null;
     } else {
       if (_participantDic[userID]?.viewID != -1) {
-        return _participantDic[userID]?.view;
-      } else {
-        Widget? playViewWidget =
-            ZegoExpressEngine.instance.createPlatformView((viewID) {
-          var participant = _participantDic[userID];
-          participant!.viewID = viewID;
-
-          _playStream(participant.streamID);
-        });
-        return playViewWidget;
+        ZegoExpressEngine.instance
+            .destroyPlatformView(_participantDic[userID]!.viewID);
       }
+      Widget? playViewWidget =
+          ZegoExpressEngine.instance.createPlatformView((viewID) {
+        var participant = _participantDic[userID];
+        participant!.viewID = viewID;
+
+        _playStream(participant.streamID);
+      });
+      return playViewWidget;
     }
   }
 
