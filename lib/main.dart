@@ -27,25 +27,28 @@ class MyApp extends StatelessWidget {
       initialRoute: '/home_page',
       routes: {
         '/home_page': (context) => HomePage(),
-        '/call_page': (context) => CallPage(),
+        '/live_page': (context) => LivePage(),
       },
     );
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = 0;
-
-  // This room id for test only
-  final String roomID = '123456';
 
   // Heroku server url for example
   // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
   final String tokenServerUrl = ''; // https://xxx.herokuapp.com
 
   // TODO Test data >>>>>>>>>>>>>>
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  String roomID = "0";
 
   Future<bool> requestPermission() async {
     PermissionStatus microphoneStatus = await Permission.microphone.request();
@@ -64,8 +67,8 @@ class HomePage extends StatelessWidget {
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
   Future<String> getToken(String userID) async {
-    final response =
-        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
+    final response = await http
+        .get(Uri.parse('${widget.tokenServerUrl}/access_token?uid=$userID'));
     if (response.statusCode == 200) {
       final jsonObj = jsonDecode(response.body);
       return jsonObj['token'];
@@ -74,58 +77,84 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  Future<Map<String, String>> getJoinRoomArgs() async {
+  Future<Map<String, String>> getJoinRoomArgs(String role) async {
     final userID = math.Random().nextInt(10000).toString();
     final String token = await getToken(userID);
     return {
       'userID': userID,
       'token': token,
       'roomID': roomID,
-      'appID': appID.toString(),
+      'appID': widget.appID.toString(),
+      'role': role,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          const Text(
-            'ZEGOCLOUD',
-            style: TextStyle(fontSize: 30, color: Colors.blue),
-          ),
-          ElevatedButton(
-              onPressed: () async {
-                await requestPermission();
-                Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: await getJoinRoomArgs());
+    return Scaffold(
+      body: Container(
+        color: Colors.white,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            const Text(
+              'ZEGOCLOUD',
+              style: TextStyle(fontSize: 30, color: Colors.blue),
+            ),
+            TextField(
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Room ID',
+              ),
+              onChanged: (String value) {
+                setState(() {
+                  roomID = value;
+                });
               },
-              child: const Text('Join Room')),
-        ],
+            ),
+            ElevatedButton(
+                onPressed: () async {
+                  await requestPermission();
+                  Navigator.pushReplacementNamed(context, '/live_page',
+                      arguments: await getJoinRoomArgs('host'));
+                },
+                child: const Text('Join Live As Host')),
+            ElevatedButton(
+                onPressed: () async {
+                  await requestPermission();
+                  Navigator.pushReplacementNamed(context, '/live_page',
+                      arguments: await getJoinRoomArgs('audience'));
+                },
+                child: const Text('Join Live As Audience')),
+          ],
+        ),
       ),
     );
   }
 }
 
-class CallPage extends StatefulWidget {
-  const CallPage({Key? key}) : super(key: key);
+class LivePage extends StatefulWidget {
+  const LivePage({Key? key}) : super(key: key);
 
   @override
-  State<CallPage> createState() => _CallPageState();
+  State<LivePage> createState() => _LivePageState();
 }
 
-class _CallPageState extends State<CallPage> {
+class _LivePageState extends State<LivePage> {
   Widget _bigView = Container(
     color: Colors.white,
   );
   Widget _smallView = Container(
-    color: Colors.black54,
+    color: Colors.transparent,
   );
   bool _joinedRoom = false;
   bool _micEnable = true;
   bool _cameraEnable = true;
+  bool _isHost = true;
+  bool _isCoHost = false;
+  String _hostID = "";
+  String _coHostID = "";
+  String _userID = "";
 
   void prepareSDK(int appID) {
     ZegoExpressManager.shared.createEngine(appID);
@@ -134,8 +163,21 @@ class _CallPageState extends State<CallPage> {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
           setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            if (userID == _hostID) {
+              _bigView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            }
           });
+        }
+      } else {
+        for (final userID in userIDList) {
+          // Host or Co-Host left room, set coHostID to empty
+          if (_coHostID.isNotEmpty &&
+              (userID == _coHostID || userID == _hostID)) {
+            ZegoExpressManager.shared.setRoomExtraInfo('coHostID', "");
+            setState(() {
+              _coHostID = "";
+            });
+          }
         }
       }
     };
@@ -145,37 +187,83 @@ class _CallPageState extends State<CallPage> {
         (int remainTimeInSecond, String roomID) {
       // TODO You need to request a new token when this callback is trigger
     };
+    ZegoExpressManager.shared.onRoomExtraInfoUpdate =
+        (List<ZegoRoomExtraInfo> infoList) {
+      for (final info in infoList) {
+        if (info.key == 'hostID') {
+          setState(() {
+            _hostID = info.value;
+          });
+        } else if (info.key == 'coHostID') {
+          setState(() {
+            _coHostID = info.value;
+            if (_coHostID.isNotEmpty) {
+              _smallView =
+                  ZegoExpressManager.shared.getRemoteVideoView(_coHostID)!;
+            } else {
+              _smallView = Container(
+                color: Colors.transparent,
+              );
+            }
+          });
+        }
+      }
+    };
+    ZegoExpressManager.shared.onRoomStateUpdate = (ZegoRoomState state) {
+      if (state == ZegoRoomState.Connected) {
+        if (_isHost) {
+          // Set to room extra-info and let audiences know who is the host
+          ZegoExpressManager.shared.setRoomExtraInfo('hostID', _userID);
+
+          setState(() {
+            _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
+            _hostID = _userID;
+          });
+        }
+
+        setState(() {
+          _joinedRoom = true;
+        });
+      }
+    };
   }
 
   @override
   void didChangeDependencies() {
     RouteSettings settings = ModalRoute.of(context)!.settings;
     if (settings.arguments != null) {
-      // Read arguments
-      Map<String, String> obj = settings.arguments as Map<String, String>;
-      var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
-      var roomID = obj['roomID'] ?? "";
-      var appID = int.parse(obj['appID'] ?? "0");
-
-      // Prepare SDK
-      prepareSDK(appID);
-
       // Join room and wait for other...
       if (!_joinedRoom) {
+        // Read arguments
+        Map<String, String> obj = settings.arguments as Map<String, String>;
+        var userID = obj['userID'] ?? "";
+        var token = obj['token'] ?? "";
+        var roomID = obj['roomID'] ?? "";
+        var appID = int.parse(obj['appID'] ?? "0");
+        var role = obj['role'] ?? "host";
+        setState(() {
+          _userID = userID;
+          _isHost = role == 'host';
+        });
+
+        // Prepare SDK
+        prepareSDK(appID);
+
         assert(token.isNotEmpty,
             "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
+        const ZegoMediaOptions optionsForHost = [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
           ZegoMediaOption.autoPlayVideo
-        ]);
-        setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
-          _joinedRoom = true;
-        });
+        ];
+        const ZegoMediaOptions optionsForAudience = [
+          ZegoMediaOption.autoPlayAudio,
+          ZegoMediaOption.autoPlayVideo
+        ];
+        var options = _isHost ? optionsForHost : optionsForAudience;
+        ZegoExpressManager.shared
+            .joinRoom(roomID, ZegoUser(userID, userID), token, options);
       }
     }
     super.didChangeDependencies();
@@ -183,6 +271,41 @@ class _CallPageState extends State<CallPage> {
 
   @override
   Widget build(BuildContext context) {
+    void requestToCoHost() {
+      if (_coHostID.isNotEmpty) {
+        log('Already co-host in the view!');
+        return;
+      }
+      setState(() {
+        _smallView = ZegoExpressManager.shared.getLocalVideoView()!;
+        _isCoHost = true;
+        _coHostID = _userID;
+      });
+
+      // Set to room extra-info and let audiences know who is the co-host
+      ZegoExpressManager.shared.setRoomExtraInfo('coHostID', _userID);
+      ZegoExpressManager.shared.enableCamera(true);
+      ZegoExpressManager.shared.enableMic(true);
+    }
+
+    void requestToAudience() {
+      if (_coHostID.isEmpty || _coHostID != _userID) {
+        return;
+      }
+      setState(() {
+        _smallView = Container(
+          color: Colors.transparent,
+        );
+        _isCoHost = false;
+        _coHostID = "";
+      });
+
+      // Set to room extra-info and let audiences know co-host is offline now
+      ZegoExpressManager.shared.setRoomExtraInfo('coHostID', '');
+      ZegoExpressManager.shared.enableCamera(false);
+      ZegoExpressManager.shared.enableMic(false);
+    }
+
     return Scaffold(
       body: Center(
         child: Stack(
@@ -205,24 +328,6 @@ class _CallPageState extends State<CallPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Microphone control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _micEnable ? Icons.mic : Icons.mic_off,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableMic(!_micEnable);
-                        setState(() {
-                          _micEnable = !_micEnable;
-                        });
-                      },
-                    ),
                     // End call button
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -236,12 +341,16 @@ class _CallPageState extends State<CallPage> {
                       ),
                       onPressed: () {
                         ZegoExpressManager.shared.leaveRoom();
+                        // Set role back to audience when leave room
+                        if (_isCoHost) {
+                          requestToAudience();
+                        }
                         setState(() {
                           _bigView = Container(
                             color: Colors.white,
                           );
                           _smallView = Container(
-                            color: Colors.black54,
+                            color: Colors.transparent,
                           );
                           _joinedRoom = false;
                         });
@@ -249,26 +358,74 @@ class _CallPageState extends State<CallPage> {
                         Navigator.pushReplacementNamed(context, '/home_page');
                       },
                     ),
-                    // Camera control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _cameraEnable
-                            ? Icons.camera_alt
-                            : Icons.camera_alt_outlined,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableCamera(!_cameraEnable);
-                        setState(() {
-                          _cameraEnable = !_cameraEnable;
-                        });
-                      },
-                    ),
+                    (_isHost || _isCoHost)
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  shape: const CircleBorder(),
+                                  padding: const EdgeInsets.all(10),
+                                  primary: Colors.black26,
+                                ),
+                                child: Icon(
+                                  _micEnable ? Icons.mic : Icons.mic_off,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  ZegoExpressManager.shared
+                                      .enableMic(!_micEnable);
+                                  setState(() {
+                                    _micEnable = !_micEnable;
+                                  });
+                                },
+                              ),
+                              // Camera control button
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  shape: const CircleBorder(),
+                                  padding: const EdgeInsets.all(10),
+                                  primary: Colors.black26,
+                                ),
+                                child: Icon(
+                                  _cameraEnable
+                                      ? Icons.camera_alt
+                                      : Icons.camera_alt_outlined,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  ZegoExpressManager.shared
+                                      .enableCamera(!_cameraEnable);
+                                  setState(() {
+                                    _cameraEnable = !_cameraEnable;
+                                  });
+                                },
+                              ),
+                            ],
+                          )
+                        : Container(),
+                    _isHost
+                        ? Container()
+                        : ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              shape: const CircleBorder(),
+                              padding: const EdgeInsets.all(10),
+                              primary: Colors.black26,
+                            ),
+                            child: Icon(
+                              _isCoHost
+                                  ? Icons.account_circle
+                                  : Icons.account_circle_outlined,
+                              size: 28,
+                            ),
+                            onPressed: () {
+                              if (!_isCoHost) {
+                                requestToCoHost();
+                              } else {
+                                requestToAudience();
+                              }
+                            },
+                          ),
                   ],
                 )),
           ],
