@@ -1,6 +1,6 @@
 # ZEGOCLOUD easy example
 
-ZEGOCLOUD's easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
+ZEGOCLOUD's  easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
 
 ## Getting started
 
