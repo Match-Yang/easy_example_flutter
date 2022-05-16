@@ -4,7 +4,6 @@ import 'dart:math' as math;
 
 import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:http/http.dart' as http;
@@ -27,7 +26,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/home_page',
       routes: {
         '/home_page': (context) => HomePage(),
-        '/call_page': (context) => CallPage(),
+        '/call_page': (context) => const CallPage(),
       },
     );
   }
@@ -36,14 +35,14 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatelessWidget {
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 0;
+  final int appID = ;
 
   // This room id for test only
   final String roomID = '123456';
 
   // Heroku server url for example
   // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
-  final String tokenServerUrl = ''; // https://xxx.herokuapp.com
+  final String tokenServerUrl = ; // https://xxx.herokuapp.com
 
   // TODO Test data >>>>>>>>>>>>>>
 
