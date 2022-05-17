@@ -52,12 +52,14 @@ class ZegoExpressManager {
   void Function(int remainTimeInSecond, String roomID)? onRoomTokenWillExpire;
   void Function(List<ZegoRoomExtraInfo> roomExtraInfoList)?
       onRoomExtraInfoUpdate;
-  void Function(ZegoRoomState state)? onRoomStateUpdate;
+  void Function(ZegoRoomState state, int error)? onRoomStateUpdate;
 
-  bool _isPlayingStream = false;
-  ZegoParticipant _localParticipant = ZegoParticipant("", "");
-  UserIDParticipantMap _participantDic = {};
-  StreamIDParticipantMap _streamDic = {};
+  String token = '';
+
+  bool _isPublishingStream = false;
+  ZegoParticipant localParticipant = ZegoParticipant("", "");
+  final UserIDParticipantMap _participantDic = {};
+  final StreamIDParticipantMap _streamDic = {};
   String _roomID = "";
   ZegoMediaOptions _mediaOptions = [
     ZegoMediaOption.autoPlayAudio,
@@ -67,10 +69,8 @@ class ZegoExpressManager {
   void createEngine(int appID) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
-    ZegoEngineProfile profile = ZegoEngineProfile(appID, ZegoScenario.General,
-        enablePlatformView: true);
-
-    ZegoExpressEngine.createEngineWithProfile(profile);
+    ZegoExpressEngine.createEngineWithProfile(
+        ZegoEngineProfile(appID, ZegoScenario.Communication));
 
     // Setup event handler
     ZegoExpressEngine.onRoomStreamUpdate = (String roomID,
@@ -101,10 +101,13 @@ class ZegoExpressManager {
         for (final user in userList) {
           userIDList.add(user.userID);
           if (_participantDic.containsKey(user.userID)) {
-            var participant = _participantDic[user.userID];
-            ZegoExpressEngine.instance.destroyPlatformView(participant!.viewID);
+            var participant = _participantDic[user.userID]!;
+            ZegoExpressEngine.instance.stopPlayingStream(participant.streamID);
 
-            _streamDic.remove(_participantDic[user.userID]!.streamID);
+            ZegoExpressEngine.instance
+                .destroyTextureRenderer(participant.viewID);
+
+            _streamDic.remove(participant.streamID);
             _participantDic.remove(user.userID);
           }
         }
@@ -143,7 +146,7 @@ class ZegoExpressManager {
         int errorCode, Map<String, dynamic> extendedData) {
       _processLog("onRoomStateUpdate", state.index, errorCode);
       if (onRoomStateUpdate != null) {
-        onRoomStateUpdate!(state);
+        onRoomStateUpdate!(state, errorCode);
       }
     };
     ZegoExpressEngine.onPublisherStateUpdate = (String streamID,
@@ -165,7 +168,7 @@ class ZegoExpressManager {
         return;
       }
       var participant = _participantDic[userID];
-      if (userID == _localParticipant.userID) {
+      if (userID == localParticipant.userID) {
         participant!.network = downstreamQuality;
       } else {
         participant!.network = upstreamQuality;
@@ -173,9 +176,7 @@ class ZegoExpressManager {
     };
     ZegoExpressEngine.onRoomTokenWillExpire =
         (String roomID, int remainTimeInSecond) {
-      if (onRoomTokenWillExpire != null) {
-        onRoomTokenWillExpire!(remainTimeInSecond, roomID);
-      }
+      onRoomTokenWillExpire!(remainTimeInSecond, roomID);
     };
     ZegoExpressEngine.onRoomExtraInfoUpdate =
         (String roomID, List<ZegoRoomExtraInfo> roomExtraInfoList) {
@@ -201,7 +202,7 @@ class ZegoExpressManager {
     participant.streamID = _generateStreamID(participant.userID, roomID);
     _participantDic[participant.userID] = participant;
     _streamDic[participant.streamID] = participant;
-    _localParticipant = participant;
+    localParticipant = participant;
 
     // if you need limit participant count, you can change the max member count
     var roomConfig = ZegoRoomConfig(0, true, token);
@@ -215,31 +216,34 @@ class ZegoExpressManager {
       ZegoExpressEngine.instance.enableCamera(participant.camera);
       ZegoExpressEngine.instance.muteMicrophone(!participant.mic);
 
-      _isPlayingStream = true;
+      _isPublishingStream = true;
     }
   }
 
-  Widget? getLocalVideoView() {
-    if (_localParticipant.userID.isEmpty) {
+  Future<Widget?> getLocalVideoView(int width, int height) async {
+    if (localParticipant.userID.isEmpty) {
       log("Error: [getLocalVideoView] You need to login room before you call getLocalVideoView");
       return null;
     }
-    Widget? previewViewWidget =
-        ZegoExpressEngine.instance.createPlatformView((viewID) {
-      _localParticipant.viewID = viewID;
+    if (localParticipant.viewID != -1) {
+      ZegoExpressEngine.instance
+          .destroyTextureRenderer(localParticipant.viewID);
+    }
 
-      // Start preview using platform view
-      // Set the preview canvas
-      ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
-      // Start preview
-      ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
-    });
-    return previewViewWidget;
+    var textureID =
+        await ZegoExpressEngine.instance.createTextureRenderer(width, height);
+    Widget previewViewWidge = Texture(textureId: textureID);
+
+    ZegoExpressEngine.instance.startPreview(canvas: ZegoCanvas(textureID));
+    localParticipant.viewID = textureID;
+
+    return previewViewWidge;
   }
 
   // Get the view and call setState to set the view to render tree
   // Call this function after join room
-  Widget? getRemoteVideoView(String userID) {
+  Future<Widget?> getRemoteVideoView(
+      String userID, int width, int height) async {
     if (_roomID.isEmpty) {
       log("Error: [getRemoteVideoView] You need to join the room first and then get the videoView");
       return null;
@@ -252,56 +256,57 @@ class ZegoExpressManager {
       log("Error: [getRemoteVideoView] there is no user with id ($userID) in the room");
       return null;
     } else {
-      if (_participantDic[userID]?.viewID != -1) {
-        ZegoExpressEngine.instance
-            .destroyPlatformView(_participantDic[userID]!.viewID);
-      }
-      Widget? playViewWidget =
-          ZegoExpressEngine.instance.createPlatformView((viewID) {
-        var participant = _participantDic[userID];
-        participant!.viewID = viewID;
+      var participant = _participantDic[userID];
 
-        _playStream(participant.streamID);
-      });
+      if (participant!.viewID != -1) {
+        ZegoExpressEngine.instance.destroyTextureRenderer(participant.viewID);
+      }
+      var textureID =
+          await ZegoExpressEngine.instance.createTextureRenderer(width, height);
+      Widget playViewWidget = Texture(textureId: textureID);
+
+      participant.viewID = textureID;
+
+      _playStream(participant.streamID);
       return playViewWidget;
     }
   }
 
   void enableCamera(bool enable) {
-    if (enable && !_isPlayingStream) {
+    if (enable && !_isPublishingStream) {
       ZegoExpressEngine.instance
-          .startPublishingStream(_localParticipant.streamID);
+          .startPublishingStream(localParticipant.streamID);
     } else if (!_mediaOptions.contains(ZegoMediaOption.publishLocalAudio) &&
         !_mediaOptions.contains(ZegoMediaOption.publishLocalVideo) &&
         !enable &&
-        !_localParticipant.mic &&
-        _isPlayingStream) {
+        !localParticipant.mic &&
+        _isPublishingStream) {
       ZegoExpressEngine.instance.stopPublishingStream();
       ZegoExpressEngine.instance.stopPreview();
 
-      _isPlayingStream = false;
+      _isPublishingStream = false;
     }
 
     ZegoExpressEngine.instance.enableCamera(enable);
-    _localParticipant.camera = enable;
+    localParticipant.camera = enable;
   }
 
   void enableMic(bool enable) {
-    if (enable && !_isPlayingStream) {
+    if (enable && !_isPublishingStream) {
       ZegoExpressEngine.instance
-          .startPublishingStream(_localParticipant.streamID);
+          .startPublishingStream(localParticipant.streamID);
     } else if (!_mediaOptions.contains(ZegoMediaOption.publishLocalAudio) &&
         !_mediaOptions.contains(ZegoMediaOption.publishLocalVideo) &&
         !enable &&
-        !_localParticipant.camera &&
-        _isPlayingStream) {
+        !localParticipant.camera &&
+        _isPublishingStream) {
       ZegoExpressEngine.instance.stopPublishingStream();
       ZegoExpressEngine.instance.stopPreview();
 
-      _isPlayingStream = false;
+      _isPublishingStream = false;
     }
     ZegoExpressEngine.instance.muteMicrophone(!enable);
-    _localParticipant.mic = enable;
+    localParticipant.mic = enable;
   }
 
   void switchFrontCamera(bool isFront) {
@@ -313,7 +318,7 @@ class ZegoExpressManager {
     ZegoExpressEngine.instance.stopPreview();
     _participantDic.forEach((_, participant) {
       if (participant.viewID != -1) {
-        ZegoExpressEngine.instance.destroyPlatformView(participant.viewID);
+        ZegoExpressEngine.instance.destroyTextureRenderer(participant.viewID);
       }
     });
     _participantDic.clear();
@@ -321,7 +326,7 @@ class ZegoExpressManager {
     _roomID = '';
     ZegoExpressEngine.instance.logoutRoom();
 
-    _isPlayingStream = false;
+    _isPublishingStream = false;
   }
 
   Future<int> setRoomExtraInfo(String key, String value) async {
@@ -342,7 +347,7 @@ class ZegoExpressManager {
 
     // The streamID can use any character.
     // For the convenience of query, roomID + UserID + suffix is used here.
-    String streamID = roomID + userID + "_main";
+    String streamID = "$roomID${userID}_main";
     return streamID;
   }
 
@@ -357,7 +362,7 @@ class ZegoExpressManager {
         log("Error [_playStream] view id is empty!");
         return;
       }
-      ZegoCanvas canvas = ZegoCanvas.view(participant.viewID);
+      ZegoCanvas canvas = ZegoCanvas(participant.viewID);
       ZegoExpressEngine.instance.startPlayingStream(streamID, canvas: canvas);
       if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
         ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
@@ -375,5 +380,12 @@ class ZegoExpressManager {
           "=======\nYou can view the exact cause of the error through the link below \n https://doc-zh.zego.im/article/4377?w=$errorCode\n=======";
     }
     log("[$methodName]: state:$state errorCode:$errorCode\n$description");
+  }
+
+  void renewToken(String token) {
+    this.token = token;
+    if (_roomID.isNotEmpty) {
+      ZegoExpressEngine.instance.renewToken(_roomID, token);
+    }
   }
 }

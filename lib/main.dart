@@ -1,15 +1,27 @@
-import 'dart:convert';
-import 'dart:developer';
 import 'dart:math' as math;
-
-import 'package:easy_example_flutter/zego_express_manager.dart';
+import 'dart:developer';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
-import 'package:http/http.dart' as http;
+
+import 'zego_express_manager.dart';
+
+// step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+const int appID = 0;
+
+// step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+// Heroku server url for example 'https://xxx.herokuapp.com'
+const String tokenServerUrl = '';
+
+// test data
+const String roomID = '123456';
+String userID = math.Random().nextInt(10000).toString();
 
 void main() {
   runApp(const MyApp());
+  ZegoExpressManager.shared.createEngine(appID);
 }
 
 class MyApp extends StatelessWidget {
@@ -20,72 +32,45 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/home_page',
       routes: {
-        '/home_page': (context) => HomePage(),
-        '/call_page': (context) => const CallPage(),
+        '/home_page': (context) => const HomePage(),
+        '/call_page': (context) => const CallPage()
       },
     );
   }
 }
 
-class HomePage extends StatelessWidget {
-  // TODO Test data <<<<<<<<<<<<<<
-  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = ;
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   // This room id for test only
-  final String roomID = '123456';
 
-  // Heroku server url for example
-  // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
-  final String tokenServerUrl = ; // https://xxx.herokuapp.com
+  String tips = 'getting token...';
+  String buttonTips = 'please wait for token';
 
-  // TODO Test data >>>>>>>>>>>>>>
+  bool ready = false;
 
-  Future<bool> requestPermission() async {
-    PermissionStatus microphoneStatus = await Permission.microphone.request();
-    if (microphoneStatus != PermissionStatus.granted) {
-      log('Error: Microphone permission not granted!!!');
-      return false;
-    }
-    PermissionStatus cameraStatus = await Permission.camera.request();
-    if (cameraStatus != PermissionStatus.granted) {
-      log('Error: Camera permission not granted!!!');
-      return false;
-    }
-    return true;
-  }
-
-  // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
-  // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
-  Future<String> getToken(String userID) async {
-    final response =
-        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
-    if (response.statusCode == 200) {
-      final jsonObj = jsonDecode(response.body);
-      return jsonObj['token'];
-    } else {
-      return "";
-    }
-  }
-
-  Future<Map<String, String>> getJoinRoomArgs() async {
-    final userID = math.Random().nextInt(10000).toString();
-    final String token = await getToken(userID);
-    return {
-      'userID': userID,
-      'token': token,
-      'roomID': roomID,
-      'appID': appID.toString(),
-    };
+  @override
+  void initState() {
+    super.initState();
+    requestPermission();
+    requestToken();
   }
 
   @override
   Widget build(BuildContext context) {
+    ready = ZegoExpressManager.shared.token.isNotEmpty;
+    if (ready) {
+      tips = "Get token success";
+      buttonTips = "Join Room";
+    }
     return Container(
       color: Colors.white,
       child: Column(
@@ -95,107 +80,119 @@ class HomePage extends StatelessWidget {
             'ZEGOCLOUD',
             style: TextStyle(fontSize: 30, color: Colors.blue),
           ),
+          Text(
+            tips,
+            style: const TextStyle(fontSize: 20, color: Colors.black54),
+          ),
           ElevatedButton(
-              onPressed: () async {
-                await requestPermission();
-                Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: await getJoinRoomArgs());
-              },
-              child: const Text('Join Room')),
+            onPressed: () {
+              if (ready) Navigator.pushNamed(context, '/call_page');
+            },
+            child: Text(buttonTips),
+          ),
         ],
       ),
     );
   }
+
+  void requestToken({bool needReNewToken = false}) {
+    if (ZegoExpressManager.shared.token.isEmpty || needReNewToken) {
+      setState(() {
+        tips = 'getting token...';
+        buttonTips = 'please wait for token';
+      });
+
+      getToken(userID).then((token) {
+        ZegoExpressManager.shared.renewToken(token);
+        setState(() {
+          ready = ZegoExpressManager.shared.token.isNotEmpty;
+          tips = ZegoExpressManager.shared.token.isEmpty
+              ? "Get token faild, please check your tokenServerUrl"
+              : "Get token success";
+        });
+      });
+    }
+  }
 }
 
 class CallPage extends StatefulWidget {
-  const CallPage({Key? key}) : super(key: key);
+  const CallPage({
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<CallPage> createState() => _CallPageState();
 }
 
 class _CallPageState extends State<CallPage> {
-  Widget _bigView = Container(
-    color: Colors.white,
-  );
-  Widget _smallView = Container(
-    color: Colors.black54,
-  );
-  bool _joinedRoom = false;
+  Widget? _localView = Container(color: Colors.white);
+  final GlobalKey _localViewKey = GlobalKey();
+
+  Widget _remoteView = Container(color: Colors.black54);
+  final GlobalKey _remoteViewKey = GlobalKey();
+
+  bool needLoadUserView = true;
+
   bool _micEnable = true;
   bool _cameraEnable = true;
 
-  void prepareSDK(int appID) {
-    ZegoExpressManager.shared.createEngine(appID);
-    ZegoExpressManager.shared.onRoomUserUpdate =
-        (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
-      if (updateType == ZegoUpdateType.Add) {
-        for (final userID in userIDList) {
-          setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-          });
-        }
-      }
-    };
+  String roomState = 'None';
+  int roomErrorCode = 0;
+
+  @override
+  void initState() {
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
     ZegoExpressManager.shared.onRoomTokenWillExpire =
         (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
+      getToken(ZegoExpressManager.shared.localParticipant.userID).then((token) {
+        ZegoExpressManager.shared.renewToken(token);
+      });
     };
-  }
+    ZegoExpressManager.shared.onRoomStateUpdate =
+        (ZegoRoomState state, int errorCode) {
+      setState(() {
+        roomState = state.toString();
+        roomErrorCode = errorCode;
+      });
+    };
 
-  @override
-  void didChangeDependencies() {
-    RouteSettings settings = ModalRoute.of(context)!.settings;
-    if (settings.arguments != null) {
-      // Read arguments
-      Map<String, String> obj = settings.arguments as Map<String, String>;
-      var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
-      var roomID = obj['roomID'] ?? "";
-      var appID = int.parse(obj['appID'] ?? "0");
+    ZegoExpressManager.shared.joinRoom(
+        roomID, ZegoUser(userID, userID), ZegoExpressManager.shared.token, [
+      ZegoMediaOption.publishLocalAudio,
+      ZegoMediaOption.publishLocalVideo,
+      ZegoMediaOption.autoPlayAudio,
+      ZegoMediaOption.autoPlayVideo
+    ]);
 
-      // Prepare SDK
-      prepareSDK(appID);
-
-      // Join room and wait for other...
-      if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
-          ZegoMediaOption.publishLocalAudio,
-          ZegoMediaOption.publishLocalVideo,
-          ZegoMediaOption.autoPlayAudio,
-          ZegoMediaOption.autoPlayVideo
-        ]);
-        setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
-          _joinedRoom = true;
-        });
-      }
-    }
-    super.didChangeDependencies();
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    // we need loadUserView after First build
+    // to get the view element size
+    if (needLoadUserView) {
+      needLoadUserView = false;
+      Future.delayed(const Duration(), () {
+        loadUserViewAfterFirstBuild();
+      });
+    }
+
     return Scaffold(
       body: Center(
         child: Stack(
           children: <Widget>[
-            SizedBox.expand(
-              child: _bigView,
-            ),
+            SizedBox.expand(key: _localViewKey, child: _localView),
             Positioned(
                 top: 100,
                 right: 16,
                 child: SizedBox(
-                  width: 114,
-                  height: 170,
-                  child: _smallView,
+                  key: _remoteViewKey,
+                  // default use 9:16
+                  width: 108,
+                  height: 192,
+                  child: _remoteView,
                 )),
             Positioned(
                 bottom: 100,
@@ -236,13 +233,8 @@ class _CallPageState extends State<CallPage> {
                       onPressed: () {
                         ZegoExpressManager.shared.leaveRoom();
                         setState(() {
-                          _bigView = Container(
-                            color: Colors.white,
-                          );
-                          _smallView = Container(
-                            color: Colors.black54,
-                          );
-                          _joinedRoom = false;
+                          _localView = Container(color: Colors.white);
+                          _remoteView = Container(color: Colors.black54);
                         });
                         // Back to home page
                         Navigator.pushReplacementNamed(context, '/home_page');
@@ -270,9 +262,90 @@ class _CallPageState extends State<CallPage> {
                     ),
                   ],
                 )),
+            Positioned(
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: roomErrorCode != 0
+                    ? Text(
+                        '$roomState\nerror: $roomErrorCode',
+                        style:
+                            const TextStyle(fontSize: 20, color: Colors.white),
+                      )
+                    : null,
+              ),
+            ),
           ],
         ),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  void loadUserViewAfterFirstBuild() {
+    double devicePixelRatio =
+        WidgetsFlutterBinding.ensureInitialized().window.devicePixelRatio;
+    RenderBox? localViewRenderBox =
+        _localViewKey.currentContext?.findRenderObject() as RenderBox;
+
+    final localViewSize = localViewRenderBox.size * devicePixelRatio;
+
+    ZegoExpressManager.shared
+        // .getLocalVideoView(widget.screenWidthPx, widget.screenHeightPx)
+        .getLocalVideoView(
+            (localViewSize.width).floor(), (localViewSize.height).floor())
+        .then((texture) {
+      setState(() {
+        _localView = texture!;
+      });
+    });
+
+    RenderBox? remoteViewRenderBox =
+        _localViewKey.currentContext?.findRenderObject() as RenderBox;
+    final remoteViewSize = remoteViewRenderBox.size * devicePixelRatio;
+    ZegoExpressManager.shared.onRoomUserUpdate =
+        (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
+      if (updateType == ZegoUpdateType.Add) {
+        for (final userID in userIDList) {
+          ZegoExpressManager.shared
+              .getRemoteVideoView(userID, (remoteViewSize.width).floor(),
+                  (remoteViewSize.height).floor())
+              .then((texture) {
+            setState(() {
+              _remoteView = texture!;
+            });
+          });
+        }
+      } else {
+        setState(() {
+          _remoteView = Container(color: Colors.black54);
+        });
+      }
+    };
+  }
+}
+
+Future<bool> requestPermission() async {
+  PermissionStatus microphoneStatus = await Permission.microphone.request();
+  if (microphoneStatus != PermissionStatus.granted) {
+    log('Error: Microphone permission not granted!!!');
+    return false;
+  }
+  PermissionStatus cameraStatus = await Permission.camera.request();
+  if (cameraStatus != PermissionStatus.granted) {
+    log('Error: Camera permission not granted!!!');
+    return false;
+  }
+  return true;
+}
+
+// Get your token from tokenServer
+Future<String> getToken(String userID) async {
+  final response =
+      await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
+  if (response.statusCode == 200) {
+    final jsonObj = json.decode(response.body);
+    return jsonObj['token'];
+  } else {
+    return "";
   }
 }
