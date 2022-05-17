@@ -9,11 +9,11 @@ import 'package:zego_express_engine/zego_express_engine.dart';
 import 'zego_express_manager.dart';
 
 // step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-const int appID = 0;
+int appID = 0;
 
 // step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
 // Heroku server url for example 'https://xxx.herokuapp.com'
-const String tokenServerUrl = '';
+String tokenServerUrl = '';
 
 // test data
 const String roomID = '123456';

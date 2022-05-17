@@ -1,0 +1,4 @@
+*.dart filter=gitignore
+
+; git config --global filter.gitignore.clean "sed '/\/\/ gitignore begin/,/\/\/ gitignore end$/'d"
+; git config --global filter.gitignore.smudge cat  
