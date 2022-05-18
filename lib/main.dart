@@ -39,7 +39,7 @@ class HomePage extends StatefulWidget {
   final int appID = 0;
 
   // Heroku server url for example
-  // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+  // Get the server from: https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs
   final String tokenServerUrl = ''; // https://xxx.herokuapp.com
 
   // TODO Test data >>>>>>>>>>>>>>
@@ -67,8 +67,9 @@ class _HomePageState extends State<HomePage> {
   // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
   // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
   Future<String> getToken(String userID) async {
-    final response = await http
-        .get(Uri.parse('${widget.tokenServerUrl}/access_token?uid=$userID'));
+    String tokenUrl = '${widget.tokenServerUrl}/access_token?uid=$userID';
+    tokenUrl = tokenUrl.replaceAll('herokuapp.com//', 'herokuapp.com/');
+    final response = await http.get(Uri.parse(tokenUrl));
     if (response.statusCode == 200) {
       final jsonObj = jsonDecode(response.body);
       return jsonObj['token'];
