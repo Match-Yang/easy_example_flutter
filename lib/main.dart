@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
@@ -18,6 +20,7 @@ String tokenServerUrl = '';
 // test data
 const String roomID = '123456';
 String userID = math.Random().nextInt(10000).toString();
+String targetID = '';
 
 void main() {
   runApp(const MyApp());
@@ -50,68 +53,105 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // This room id for test only
+  bool expressReady = false;
+  String expressTips = 'getting experss token...';
 
-  String tips = 'getting token...';
-  String buttonTips = 'please wait for token';
+  bool firebaseReady = false;
+  String firebaseTips = 'getting fcm token...';
 
-  bool ready = false;
+  bool get ready => expressReady && firebaseReady;
 
   @override
   void initState() {
     super.initState();
     requestPermission();
-    requestToken();
+    requestExpressToken();
+    requestFCMToken();
   }
 
   @override
   Widget build(BuildContext context) {
-    ready = ZegoExpressManager.shared.token.isNotEmpty;
-    if (ready) {
-      tips = "Get token success";
-      buttonTips = "Join Room";
+    expressReady = ZegoExpressManager.shared.token.isNotEmpty;
+    if (expressReady) {
+      expressTips = "Get express token success";
     }
-    return Container(
-      color: Colors.white,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          const Text(
-            'ZEGOCLOUD',
-            style: TextStyle(fontSize: 30, color: Colors.blue),
-          ),
-          Text(
-            tips,
-            style: const TextStyle(fontSize: 20, color: Colors.black54),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (ready) Navigator.pushNamed(context, '/call_page');
-            },
-            child: Text(buttonTips),
-          ),
-        ],
+    return Scaffold(
+      body: Container(
+        color: Colors.white,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            const Text(
+              'ZEGOCLOUD',
+              style: TextStyle(fontSize: 30, color: Colors.blue),
+            ),
+            Column(
+              children: [
+                prepareTips(firebaseReady, firebaseTips),
+                prepareTips(expressReady, expressTips),
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(
+                    'Your UserID is: $userID',
+                    style: const TextStyle(fontSize: 20, color: Colors.blue),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_add),
+                  title: TextField(
+                    style: const TextStyle(fontSize: 20, color: Colors.blue),
+                    keyboardType: TextInputType.number,
+                    onChanged: (input) => targetID = input,
+                    decoration: const InputDecoration(
+                      hintStyle: TextStyle(fontSize: 15, color: Colors.blue),
+                      hintText: 'please input target UserID',
+                    ),
+                  ),
+                  trailing: ElevatedButton(
+                    child: ready
+                        ? const Icon(Icons.call)
+                        : const Text("please wait"),
+                    onPressed: () {
+                      if (ready) callInvite(targetID);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void requestToken({bool needReNewToken = false}) {
+  void requestFCMToken() {
+    return;
+    Firebase.initializeApp();
+    FirebaseMessaging.instance.getToken().then((fcmToken) {
+      log('fcm token: $fcmToken');
+    });
+  }
+
+  void requestExpressToken({bool needReNewToken = false}) {
     if (ZegoExpressManager.shared.token.isEmpty || needReNewToken) {
       setState(() {
-        tips = 'getting token...';
-        buttonTips = 'please wait for token';
+        expressTips = 'getting express token...';
       });
 
-      getToken(userID).then((token) {
+      getExpressToken(userID).then((token) {
         ZegoExpressManager.shared.renewToken(token);
         setState(() {
-          ready = ZegoExpressManager.shared.token.isNotEmpty;
-          tips = ZegoExpressManager.shared.token.isEmpty
-              ? "Get token faild, please check your tokenServerUrl"
-              : "Get token success";
+          expressReady = ZegoExpressManager.shared.token.isNotEmpty;
+          expressTips = ZegoExpressManager.shared.token.isEmpty
+              ? "Get express token faild, please check your tokenServerUrl"
+              : "Get express token success";
         });
       });
     }
+  }
+
+  void callInvite(String targetID) {
+    if (expressReady) Navigator.pushNamed(context, '/call_page');
   }
 }
 
@@ -145,7 +185,8 @@ class _CallPageState extends State<CallPage> {
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
     ZegoExpressManager.shared.onRoomTokenWillExpire =
         (int remainTimeInSecond, String roomID) {
-      getToken(ZegoExpressManager.shared.localParticipant.userID).then((token) {
+      getExpressToken(ZegoExpressManager.shared.localParticipant.userID)
+          .then((token) {
         ZegoExpressManager.shared.renewToken(token);
       });
     };
@@ -339,7 +380,7 @@ Future<bool> requestPermission() async {
 }
 
 // Get your token from tokenServer
-Future<String> getToken(String userID) async {
+Future<String> getExpressToken(String userID) async {
   final response =
       await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
   if (response.statusCode == 200) {
@@ -348,4 +389,16 @@ Future<String> getToken(String userID) async {
   } else {
     return "";
   }
+}
+
+ListTile prepareTips(bool ready, String tips) {
+  return ListTile(
+    leading: ready
+        ? const Icon(Icons.check_circle, color: Colors.green)
+        : const Icon(Icons.report_problem, color: Colors.red),
+    title: Text(
+      tips,
+      style: const TextStyle(fontSize: 20, color: Colors.blue),
+    ),
+  );
 }
