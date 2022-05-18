@@ -234,7 +234,8 @@ class ZegoExpressManager {
         await ZegoExpressEngine.instance.createTextureRenderer(width, height);
     Widget previewViewWidge = Texture(textureId: textureID);
 
-    ZegoExpressEngine.instance.startPreview(canvas: ZegoCanvas(textureID));
+    ZegoExpressEngine.instance.startPreview(
+        canvas: ZegoCanvas(textureID, viewMode: ZegoViewMode.AspectFill));
     localParticipant.viewID = textureID;
 
     return previewViewWidge;
@@ -362,7 +363,8 @@ class ZegoExpressManager {
         log("Error [_playStream] view id is empty!");
         return;
       }
-      ZegoCanvas canvas = ZegoCanvas(participant.viewID);
+      ZegoCanvas canvas =
+          ZegoCanvas(participant.viewID, viewMode: ZegoViewMode.AspectFill);
       ZegoExpressEngine.instance.startPlayingStream(streamID, canvas: canvas);
       if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
         ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
