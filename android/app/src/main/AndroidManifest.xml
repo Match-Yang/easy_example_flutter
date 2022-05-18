@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="im.zego.easyexample.flutter.android.easy_example_flutter">
+    package="im.zego.flutter.easy_example_flutter">
    <application
         android:label="easy_example_flutter"
         android:name="${applicationName}"
