@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> {
           (json.decode(response.body)["ret"] == 0)) {
         log('call success');
         roomID = '${userID}_$targetID';
-        // Navigator.pushNamed(context, '/call_page');
+        Navigator.pushNamed(context, '/call_page');
       } else {
         log('call failed');
       }
