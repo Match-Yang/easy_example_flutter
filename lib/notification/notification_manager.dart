@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:developer';
 
 // Flutter imports:
+import 'package:awesome_notifications/android_foreground_service.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -16,8 +17,11 @@ import '../bloc/call_bloc.dart';
 import '../firebase_options.dart';
 import 'notification_ring.dart';
 
-const firebaseChannelGroupName = 'firebase_channel_group';
+const firebaseChannelGroupKey = 'firebase_channel_group';
+const firebaseChannelGroupName = 'Firebase group';
 const firebaseChannelKey = 'firebase_channel';
+const firebaseChannelName = 'Firebase notifications';
+const firebasechannelDescription = 'Notification channel for firebase';
 
 class NotificationManager {
   static var shared = NotificationManager();
@@ -28,10 +32,10 @@ class NotificationManager {
         '',
         [
           NotificationChannel(
-              channelGroupKey: firebaseChannelGroupName,
+              channelGroupKey: firebaseChannelGroupKey,
               channelKey: firebaseChannelKey,
-              channelName: 'Firebase notifications',
-              channelDescription: 'Notification channel for firebase',
+              channelName: firebaseChannelName,
+              channelDescription: firebasechannelDescription,
               defaultColor: const Color(0xFF9D50DD),
               playSound: true,
               enableVibration: true,
@@ -42,8 +46,8 @@ class NotificationManager {
         // Channel groups are only visual and are not required
         channelGroups: [
           NotificationChannelGroup(
-              channelGroupkey: firebaseChannelGroupName,
-              channelGroupName: 'Firebase group')
+              channelGroupkey: firebaseChannelGroupKey,
+              channelGroupName: firebaseChannelGroupName)
         ]);
 
     NotificationRing.shared.init();
@@ -110,24 +114,32 @@ class NotificationManager {
     //  BEFORE!! MaterialApp widget, starts to listen the notification actions
     AwesomeNotifications()
         .actionStream
-        .listen((ReceivedNotification receivedAction) {
-      if (receivedAction.channelKey != firebaseChannelKey) {
+        .listen((ReceivedNotification notifycation) {
+      AndroidForegroundService.stopForeground();
+
+      if (notifycation.channelKey != firebaseChannelKey) {
         log('unknown channel key');
         return;
       }
-
-      // var model = ZegoNotificationModel.fromMap(
-      //     receivedAction.payload ?? <String, String>{});
-      // log('receive:${model.toMap()}');
-
-      //  dispatch notification message
-      // var caller = ZegoUserInfo(model.callerID, model.callerName);
-      // var callType =
-      //     ZegoCallTypeExtension.mapValue[int.parse(model.callTypeID)] ??
-      //         ZegoCallType.kZegoCallTypeVoice;
-      // ZegoServiceManager.shared.callService.delegate
-      //     ?.onReceiveCallInvite(caller, callType);
-      //  do nothing! cause can't receive call cancel
+      if (notifycation is ReceivedAction) {
+        var action = notifycation;
+        switch (action.buttonKeyPressed) {
+          case 'decline':
+            CallBloc.shared.add(CallInviteDecline());
+            return;
+          case 'accept':
+            CallBloc.shared
+                .add(CallInviteAccept(notifycation.payload!['roomID']!));
+            return;
+          default:
+            break;
+        }
+      }
+      CallBloc.shared.add(CallReceiveInvited(
+          notifycation.payload!['callerUserID']!,
+          notifycation.payload!['callerUserName']!,
+          notifycation.payload!['callerIconUrl']!,
+          notifycation.payload!['roomID']!));
     });
   }
 
@@ -152,16 +164,46 @@ class NotificationManager {
   Future<void> onFirebaseRemoteMessageReceive(RemoteMessage message) async {
     log('remote message receive: ${message.data}');
 
-    AwesomeNotifications().createNotification(
-        content: NotificationContent(
-            id: math.Random().nextInt(2147483647),
-            groupKey: firebaseChannelGroupName,
-            channelKey: firebaseChannelKey,
-            title: "You have a new call",
-            body: "xxx is calling you.",
-            largeIcon: 'https://img.icons8.com/color/48/000000/avatar.png',
-            payload: {"aa": "bb"},
-            notificationLayout: NotificationLayout.Default));
+    AndroidForegroundService.startForeground(
+      // AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: math.Random().nextInt(2147483647),
+        groupKey: firebaseChannelGroupName,
+        channelKey: firebaseChannelKey,
+        title: "You have a new call",
+        body: "${message.data["callerUserID"]} is calling you.",
+        // largeIcon: 'https://img.icons8.com/color/48/000000/avatar.png',
+        category: NotificationCategory.Call,
+        backgroundColor: Colors.white,
+        wakeUpScreen: true,
+        fullScreenIntent: true,
+        autoDismissible: false,
+        payload: {
+          "callerUserID": message.data["callerUserID"],
+          "callerUserName": message.data["callerUserName"],
+          "callerIconUrl": message.data["callerIconUrl"],
+          "roomID": message.data["roomID"]
+        },
+        notificationLayout: NotificationLayout.Default,
+      ),
+      actionButtons: [
+        NotificationActionButton(
+          key: 'accept',
+          icon: 'asset://assets/images/invite_voice.png',
+          label: 'Accept Call',
+          color: Colors.green,
+          autoDismissible: true,
+        ),
+        NotificationActionButton(
+          key: 'decline',
+          icon: 'asset://assets/images/invite_reject.png',
+          label: 'Reject',
+          color: Colors.red,
+          isDangerousOption: true,
+          autoDismissible: true,
+        ),
+      ],
+    );
   }
 }
 

@@ -11,6 +11,7 @@ import 'package:zego_express_engine/zego_express_engine.dart';
 
 import 'bloc/call_bloc.dart';
 import 'firebase_options.dart';
+import 'notification/notification_util.dart';
 import 'notification/notification_widget.dart';
 import 'notification/notification_manager.dart';
 import 'notification/notification_ring.dart';
@@ -50,7 +51,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => CallBloc.shared,
+      create: (context) {
+        NotificationUtils.requestFullIntentPermission(context);
+        NotificationUtils.requestBasicPermissionToSendNotifications(context);
+
+        return CallBloc.shared;
+      },
       child: MaterialApp(
         title: 'Flutter Demo',
         theme: ThemeData(primarySwatch: Colors.blue),
