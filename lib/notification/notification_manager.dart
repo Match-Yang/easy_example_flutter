@@ -45,7 +45,6 @@ class NotificationManager {
               channelGroupkey: firebaseChannelGroupName,
               channelGroupName: 'Firebase group')
         ]);
-    await onInitFinished();
 
     NotificationRing.shared.init();
   }
@@ -54,7 +53,7 @@ class NotificationManager {
     NotificationRing.shared.uninit();
   }
 
-  Future<void> onInitFinished() async {
+  Future<void> requestNotificationPermission() async {
     requestFirebaseMessagePermission();
     requestAwesomeNotificationsPermission();
 
@@ -64,8 +63,6 @@ class NotificationManager {
   }
 
   void requestFirebaseMessagePermission() async {
-    await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform);
     // 1. Instantiate Firebase Messaging
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
@@ -111,7 +108,9 @@ class NotificationManager {
 
   void listenAwesomeNotification() {
     //  BEFORE!! MaterialApp widget, starts to listen the notification actions
-    AwesomeNotifications().actionStream.listen((receivedAction) {
+    AwesomeNotifications()
+        .actionStream
+        .listen((ReceivedNotification receivedAction) {
       if (receivedAction.channelKey != firebaseChannelKey) {
         log('unknown channel key');
         return;

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 
 import 'bloc/call_bloc.dart';
+import 'firebase_options.dart';
 import 'notification/notification_widget.dart';
 import 'notification/notification_manager.dart';
 import 'notification/notification_ring.dart';
@@ -191,6 +193,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void requestFCMToken() async {
+    setState(() => firebaseTips = 'initializing firebase...');
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
     setState(() => firebaseTips = 'Getting fcm token...');
     var fcmToken = await FirebaseMessaging.instance.getToken();
 
@@ -203,6 +208,9 @@ class _HomePageState extends State<HomePage> {
         'userID': userID,
       }),
     );
+
+    setState(() => firebaseTips = 'requesting permission...');
+    NotificationManager.shared.requestNotificationPermission();
 
     setState(() {
       if ((response.statusCode == 200) &&
