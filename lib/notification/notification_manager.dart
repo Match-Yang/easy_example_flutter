@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 
 // Project imports:
 import '../bloc/call_bloc.dart';
@@ -27,30 +28,33 @@ class NotificationManager {
   static var shared = NotificationManager();
 
   Future<void> init() async {
-    await AwesomeNotifications().initialize(
-        // set the icon to null if you want to use the default app icon
-        '',
-        [
-          NotificationChannel(
-              channelGroupKey: firebaseChannelGroupKey,
-              channelKey: firebaseChannelKey,
-              channelName: firebaseChannelName,
-              channelDescription: firebasechannelDescription,
-              defaultColor: const Color(0xFF9D50DD),
-              playSound: true,
-              enableVibration: true,
-              vibrationPattern: lowVibrationPattern,
-              onlyAlertOnce: false,
-              ledColor: Colors.white)
-        ],
-        // Channel groups are only visual and are not required
-        channelGroups: [
-          NotificationChannelGroup(
-              channelGroupkey: firebaseChannelGroupKey,
-              channelGroupName: firebaseChannelGroupName)
-        ]);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await AwesomeNotifications().initialize(
+          // set the icon to null if you want to use the default app icon
+          '',
+          [
+            NotificationChannel(
+                channelGroupKey: firebaseChannelGroupKey,
+                channelKey: firebaseChannelKey,
+                channelName: firebaseChannelName,
+                channelDescription: firebasechannelDescription,
+                defaultColor: const Color(0xFF9D50DD),
+                playSound: true,
+                enableVibration: true,
+                vibrationPattern: lowVibrationPattern,
+                onlyAlertOnce: false,
+                ledColor: Colors.white)
+          ],
+          // Channel groups are only visual and are not required
+          channelGroups: [
+            NotificationChannelGroup(
+                channelGroupkey: firebaseChannelGroupKey,
+                channelGroupName: firebaseChannelGroupName)
+          ]);
+    }
 
     NotificationRing.shared.init();
+    FirebaseMessaging.onBackgroundMessage(onFirebaseBackgroundMessage);
   }
 
   void uninit() async {
@@ -59,11 +63,11 @@ class NotificationManager {
 
   Future<void> requestNotificationPermission() async {
     requestFirebaseMessagePermission();
-    requestAwesomeNotificationsPermission();
 
-    FirebaseMessaging.onBackgroundMessage(onFirebaseBackgroundMessage);
-
-    listenAwesomeNotification();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      requestAwesomeNotificationsPermission();
+      listenAwesomeNotification();
+    }
   }
 
   void requestFirebaseMessagePermission() async {
@@ -180,55 +184,61 @@ class NotificationManager {
 
   Future<void> onFirebaseRemoteMessageReceive(RemoteMessage message) async {
     log('remote message receive: ${message.data}');
-
     NotificationRing.shared.init();
     NotificationRing.shared.startRing();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      NotificationRing.shared.uninit();
-    });
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      Future.delayed(const Duration(milliseconds: 10000), () {
+        // todo control here
+        // Android maybe need cross process
+        NotificationRing.shared.uninit();
+      });
 
-    AndroidForegroundService.startForeground(
-      // AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: math.Random().nextInt(2147483647),
-        groupKey: firebaseChannelGroupName,
-        channelKey: firebaseChannelKey,
-        title: "You have a new call",
-        ticker: "You have a new call",
-        body: "${message.data["callerUserID"]} is calling you.",
-        largeIcon: 'asset://assets/images/invite_voice.png',
-        customSound: 'asset://assets/audio/CallRing.wav',
-        category: NotificationCategory.Call,
-        backgroundColor: Colors.white,
-        roundedLargeIcon: true,
-        wakeUpScreen: true,
-        fullScreenIntent: true,
-        autoDismissible: false,
-        payload: {
-          "callerUserID": message.data["callerUserID"],
-          "callerUserName": message.data["callerUserName"],
-          "callerIconUrl": message.data["callerIconUrl"],
-          "roomID": message.data["roomID"]
-        },
-        notificationLayout: NotificationLayout.Default,
-      ),
-      actionButtons: [
-        NotificationActionButton(
-          key: 'accept',
-          icon: 'asset://assets/images/invite_voice.png',
-          label: 'Accept Call',
-          color: Colors.green,
-          autoDismissible: true,
+      AndroidForegroundService.startForeground(
+        // AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: math.Random().nextInt(2147483647),
+          groupKey: firebaseChannelGroupName,
+          channelKey: firebaseChannelKey,
+          title: "You have a new call",
+          ticker: "You have a new call",
+          body: "${message.data["callerUserID"]} is calling you.",
+          largeIcon: 'asset://assets/images/invite_voice.png',
+          customSound: 'asset://assets/audio/CallRing.wav',
+          category: NotificationCategory.Call,
+          backgroundColor: Colors.white,
+          roundedLargeIcon: true,
+          wakeUpScreen: true,
+          fullScreenIntent: true,
+          autoDismissible: false,
+          payload: {
+            "callerUserID": message.data["callerUserID"],
+            "callerUserName": message.data["callerUserName"],
+            "callerIconUrl": message.data["callerIconUrl"],
+            "roomID": message.data["roomID"]
+          },
+          notificationLayout: NotificationLayout.Default,
         ),
-        NotificationActionButton(
-          key: 'decline',
-          icon: 'asset://assets/images/invite_reject.png',
-          label: 'Reject Call',
-          color: Colors.red,
-          autoDismissible: true,
-        ),
-      ],
-    );
+        actionButtons: [
+          NotificationActionButton(
+            key: 'accept',
+            icon: 'asset://assets/images/invite_voice.png',
+            label: 'Accept Call',
+            color: Colors.green,
+            autoDismissible: true,
+          ),
+          NotificationActionButton(
+            key: 'decline',
+            icon: 'asset://assets/images/invite_reject.png',
+            label: 'Reject Call',
+            color: Colors.red,
+            autoDismissible: true,
+          ),
+        ],
+      );
+    } else {
+      // ios
+      log("ios todo");
+    }
   }
 }
 
