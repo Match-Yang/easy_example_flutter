@@ -96,18 +96,35 @@ class NotificationManager {
     }
   }
 
-  void requestAwesomeNotificationsPermission() {
-    AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
-      if (!isAllowed) {
-        log('requestPermissionToSendNotifications');
+  void requestAwesomeNotificationsPermission() async {
+    List<NotificationPermission> requestedPermissions = [
+      NotificationPermission.Sound,
+      NotificationPermission.FullScreenIntent,
+      NotificationPermission.Alert,
+      NotificationPermission.Sound,
+      NotificationPermission.Badge,
+      NotificationPermission.Vibration,
+      NotificationPermission.Light,
+    ];
+    await AwesomeNotifications().requestPermissionToSendNotifications(
+        channelKey: firebaseChannelKey, permissions: requestedPermissions);
 
-        AwesomeNotifications()
-            .requestPermissionToSendNotifications()
-            .then((bool hasPermission) {
-          log('User granted permission: $hasPermission');
-        });
-      }
-    });
+    // List<NotificationPermission> permissionsAllowed =
+    //     await AwesomeNotifications().checkPermissionList(
+    //         channelKey: firebaseChannelKey, permissions: requestedPermissions);
+    // // If all permissions are allowed, there is nothing to do
+    // if (permissionsAllowed.length == requestedPermissions.length) {
+    //   log("all permissions allowed");
+    // } else {
+    //   List<NotificationPermission> permissionsNeeded = requestedPermissions
+    //       .toSet()
+    //       .difference(permissionsAllowed.toSet())
+    //       .toList();
+    //   log("${permissionsNeeded.length} permission not allowed");
+    //   for (NotificationPermission permission in permissionsNeeded) {
+    //     log("not allowed permission: $permission ");
+    //   }
+    // }
   }
 
   void listenAwesomeNotification() {
@@ -164,6 +181,12 @@ class NotificationManager {
   Future<void> onFirebaseRemoteMessageReceive(RemoteMessage message) async {
     log('remote message receive: ${message.data}');
 
+    NotificationRing.shared.init();
+    NotificationRing.shared.startRing();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      NotificationRing.shared.uninit();
+    });
+
     AndroidForegroundService.startForeground(
       // AwesomeNotifications().createNotification(
       content: NotificationContent(
@@ -171,10 +194,13 @@ class NotificationManager {
         groupKey: firebaseChannelGroupName,
         channelKey: firebaseChannelKey,
         title: "You have a new call",
+        ticker: "You have a new call",
         body: "${message.data["callerUserID"]} is calling you.",
-        // largeIcon: 'https://img.icons8.com/color/48/000000/avatar.png',
+        largeIcon: 'asset://assets/images/invite_voice.png',
+        customSound: 'asset://assets/audio/CallRing.wav',
         category: NotificationCategory.Call,
         backgroundColor: Colors.white,
+        roundedLargeIcon: true,
         wakeUpScreen: true,
         fullScreenIntent: true,
         autoDismissible: false,
@@ -197,9 +223,8 @@ class NotificationManager {
         NotificationActionButton(
           key: 'decline',
           icon: 'asset://assets/images/invite_reject.png',
-          label: 'Reject',
+          label: 'Reject Call',
           color: Colors.red,
-          isDangerousOption: true,
           autoDismissible: true,
         ),
       ],
