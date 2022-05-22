@@ -17,11 +17,11 @@ import 'notification/notification_ring.dart';
 import 'zego_express_manager.dart';
 
 // step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-int appID = 0;
+int appID = ;
 
 // step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
 // Heroku server url for example 'https://xxx.herokuapp.com'
-String tokenServerUrl = '';
+String tokenServerUrl = ;
 
 // test data
 String roomID = '123456';
@@ -141,7 +141,13 @@ class _HomePageState extends State<HomePage> {
                             ? const Icon(Icons.call)
                             : const Text("please wait"),
                         onPressed: () {
-                          if (ready) callInvite(targetID);
+                          if (ready) {
+                            if (targetID.contains(',')) {
+                              inviteGroupCall(targetID.split(','));
+                            } else {
+                              callInvite(targetID);
+                            }
+                          }
                         },
                       ),
                     ),
@@ -259,6 +265,32 @@ class _HomePageState extends State<HomePage> {
           (json.decode(response.body)["ret"] == 0)) {
         log('call success');
         roomID = '${userID}_$targetID';
+        Navigator.pushNamed(context, '/call_page');
+      } else {
+        log('call failed');
+      }
+    });
+  }
+
+  void inviteGroupCall(List<String> targetIDList) {
+    if (!ready) return;
+    http
+        .post(
+      Uri.parse('$tokenServerUrl/group_call_invite'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        "targetUserIDList": targetIDList,
+        "callerUserID": userID,
+        "callerUserName": userID,
+        "callerIconUrl": "https://img.icons8.com/color/48/000000/avatar.png",
+        "roomID": userID,
+      }),
+    )
+        .then((response) {
+      if ((response.statusCode == 200) &&
+          (json.decode(response.body)["ret"] == 0)) {
+        log('call success');
+        roomID = userID;
         Navigator.pushNamed(context, '/call_page');
       } else {
         log('call failed');
