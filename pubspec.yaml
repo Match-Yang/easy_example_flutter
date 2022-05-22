@@ -45,6 +45,7 @@ dependencies:
   # see https://github.com/rafaelsetragni/awesome_notifications/issues/365
   awesome_notifications:
     git: https://github.com/Yerannnnnn/awesome_notifications.git
+  cached_network_image: ^3.2.1
 
 dev_dependencies:
   flutter_test:

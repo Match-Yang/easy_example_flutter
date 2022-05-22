@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NotifycationWidget extends StatelessWidget {
   const NotifycationWidget({
@@ -23,7 +24,11 @@ class NotifycationWidget extends StatelessWidget {
       children: [
         const SizedBox(width: 10),
         CircleAvatar(
-          backgroundImage: NetworkImage(callerIconUrl),
+          child: CachedNetworkImage(
+            imageUrl: callerIconUrl,
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => const Icon(Icons.people),
+          ),
         ),
         const SizedBox(width: 10),
         Column(
