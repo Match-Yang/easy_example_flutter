@@ -32,7 +32,6 @@ String targetID = '';
 RemoteMessage? backendMessage;
 
 Future<void> main() async {
-
   // need ensureInitialized
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -104,8 +103,11 @@ class _HomePageState extends State<HomePage> {
             'roomID': roomID,
             'appID': appID.toString(),
           };
-          // TODO if group call flag, push to /group_call_page
-          Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
+          if(callState.isGroupCall) {
+            Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
+          } else {
+            Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
+          }
         }
       },
       child: Stack(children: [
@@ -138,9 +140,9 @@ class _HomePageState extends State<HomePage> {
                             const TextStyle(fontSize: 20, color: Colors.blue),
                         keyboardType: TextInputType.number,
                         onChanged: (input) => targetID = input,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintStyle:
-                              const TextStyle(fontSize: 15, color: Colors.blue),
+                              TextStyle(fontSize: 15, color: Colors.blue),
                           hintText: 'please input target UserID',
                         ),
                       ),
@@ -381,7 +383,7 @@ class _CallPageState extends State<CallPage> {
       // Join room and wait for other...
       if (!_joinedRoom) {
         assert(token.isNotEmpty,
-        "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
+            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         ZegoExpressManager.shared
             .joinRoom(roomID, ZegoUser(userID, userID), token, [
           ZegoMediaOption.publishLocalAudio,

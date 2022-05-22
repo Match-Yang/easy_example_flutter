@@ -179,7 +179,8 @@ class NotificationManager {
         message.data['callerUserID'],
         message.data['callerUserName'],
         message.data['callerIconUrl'],
-        message.data['roomID']));
+        message.data['roomID'],
+        message.data.containsKey("targetUserIDList")));
   }
 
   Future<void> onFirebaseRemoteMessageReceive(RemoteMessage message) async {

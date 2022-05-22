@@ -10,7 +10,7 @@ class CallBloc extends Bloc<CallEvent, CallState> {
   CallBloc() : super(CallInitial()) {
     on<CallReceiveInvited>((event, emit) {
       emit(CallInviteReceiving(event.callerUserID, event.callerUserName,
-          event.callerIconUrl, event.roomID));
+          event.callerIconUrl, event.roomID, event.isGroupCall));
     });
 
     on<CallInviteDecline>((event, emit) {
@@ -18,7 +18,7 @@ class CallBloc extends Bloc<CallEvent, CallState> {
     });
 
     on<CallInviteAccept>((event, emit) {
-      emit(CallInviteAccepted(event.roomID));
+      emit(CallInviteAccepted(event.roomID, event.isGroupCall));
       emit(CallInitial());
     });
   }

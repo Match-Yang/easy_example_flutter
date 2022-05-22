@@ -10,11 +10,13 @@ class CallInviteReceiving extends CallState {
   final String callerUserName;
   final String callerIconUrl;
   final String roomID;
-  CallInviteReceiving(
-      this.callerUserID, this.callerUserName, this.callerIconUrl, this.roomID);
+  final bool isGroupCall;
+  CallInviteReceiving(this.callerUserID, this.callerUserName,
+      this.callerIconUrl, this.roomID, this.isGroupCall);
 }
 
 class CallInviteAccepted extends CallState {
   final String roomID;
-  CallInviteAccepted(this.roomID);
+  final bool isGroupCall;
+  CallInviteAccepted(this.roomID, this.isGroupCall);
 }
