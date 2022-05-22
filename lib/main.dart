@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
+import 'package:easy_example_flutter/group_call_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -57,7 +58,8 @@ class MyApp extends StatelessWidget {
         initialRoute: '/home_page',
         routes: {
           '/home_page': (context) => const HomePage(),
-          '/call_page': (context) => const CallPage()
+          '/call_page': (context) => const CallPage(),
+          '/group_call_page': (context) => const GroupCallPage()
         },
       ),
     );
@@ -102,7 +104,8 @@ class _HomePageState extends State<HomePage> {
             'roomID': roomID,
             'appID': appID.toString(),
           };
-          Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
+          // TODO if group call flag, push to /group_call_page
+          Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
         }
       },
       child: Stack(children: [
@@ -269,7 +272,7 @@ class _HomePageState extends State<HomePage> {
         "callerUserID": userID,
         "callerUserName": userID,
         "callerIconUrl": "https://img.icons8.com/color/48/000000/avatar.png",
-        "roomID": "${userID}_$targetID",
+        "roomID": userID,
       }),
     )
         .then((response) {
@@ -280,7 +283,7 @@ class _HomePageState extends State<HomePage> {
         var roomArgs = {
           'userID': userID,
           'token': expressToken,
-          'roomID': '${userID}_$targetID',
+          'roomID': userID,
           'appID': appID.toString(),
         };
         Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
@@ -315,7 +318,7 @@ class _HomePageState extends State<HomePage> {
           'roomID': userID,
           'appID': appID.toString(),
         };
-        Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
+        Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
       } else {
         log('call failed');
       }
