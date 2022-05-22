@@ -28,6 +28,21 @@ class NotificationManager {
   static var shared = NotificationManager();
 
   Future<void> init() async {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(onFirebaseBackgroundMessage);
+
+    /// Update the iOS foreground notification presentation options to allow
+    /// heads up notifications. we don't need this
+    // await FirebaseMessaging.instance
+    //     .setForegroundNotificationPresentationOptions(
+    //   alert: true,
+    //   badge: true,
+    //   sound: true,
+    // );
+
+    NotificationRing.shared.init();
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       await AwesomeNotifications().initialize(
           // set the icon to null if you want to use the default app icon
@@ -52,9 +67,6 @@ class NotificationManager {
                 channelGroupName: firebaseChannelGroupName)
           ]);
     }
-
-    NotificationRing.shared.init();
-    FirebaseMessaging.onBackgroundMessage(onFirebaseBackgroundMessage);
   }
 
   void uninit() async {
@@ -87,13 +99,20 @@ class NotificationManager {
       provisional: false,
       sound: true,
     );
+    // For handling the received notifications
+    FirebaseMessaging.onMessage.listen(onFirebaseForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(onFirebaseForegroundMessage);
+    FirebaseMessaging.instance
+        .getInitialMessage()
+        .then((RemoteMessage? message) {
+      if (message != null) {
+        onFirebaseForegroundMessage(message);
+      }
+    });
 
     // 3. Grant permission, for iOS only, Android ignore by default
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       log('User granted permission');
-
-      // For handling the received notifications
-      FirebaseMessaging.onMessage.listen(onFirebaseForegroundMessage);
     } else {
       assert(false);
       log('User declined or has not accepted permission');
@@ -112,23 +131,6 @@ class NotificationManager {
     ];
     await AwesomeNotifications().requestPermissionToSendNotifications(
         channelKey: firebaseChannelKey, permissions: requestedPermissions);
-
-    // List<NotificationPermission> permissionsAllowed =
-    //     await AwesomeNotifications().checkPermissionList(
-    //         channelKey: firebaseChannelKey, permissions: requestedPermissions);
-    // // If all permissions are allowed, there is nothing to do
-    // if (permissionsAllowed.length == requestedPermissions.length) {
-    //   log("all permissions allowed");
-    // } else {
-    //   List<NotificationPermission> permissionsNeeded = requestedPermissions
-    //       .toSet()
-    //       .difference(permissionsAllowed.toSet())
-    //       .toList();
-    //   log("${permissionsNeeded.length} permission not allowed");
-    //   for (NotificationPermission permission in permissionsNeeded) {
-    //     log("not allowed permission: $permission ");
-    //   }
-    // }
   }
 
   void listenAwesomeNotification() {
@@ -237,8 +239,7 @@ class NotificationManager {
         ],
       );
     } else {
-      // ios
-      log("ios todo");
+      onFirebaseForegroundMessage(message);
     }
   }
 }

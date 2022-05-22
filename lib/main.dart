@@ -209,9 +209,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void requestFCMToken() async {
-    setState(() => firebaseTips = 'initializing firebase...');
-    await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform);
     setState(() => firebaseTips = 'Getting fcm token...');
     var fcmToken = await FirebaseMessaging.instance.getToken();
 
