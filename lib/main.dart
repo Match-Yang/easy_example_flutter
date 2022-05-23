@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
 import 'package:easy_example_flutter/group_call_page.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,18 +10,17 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 
 import 'bloc/call_bloc.dart';
-import 'firebase_options.dart';
 import 'notification/notification_widget.dart';
 import 'notification/notification_manager.dart';
 import 'notification/notification_ring.dart';
 import 'zego_express_manager.dart';
 
 // step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-int appID = 1;
+int appID = ;
 
 // step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
 // Heroku server url for example 'https://xxx.herokuapp.com'
-String tokenServerUrl = '';
+String tokenServerUrl = ;
 
 // test data
 String roomID = '123456';

@@ -64,7 +64,7 @@ flutterfire configure
 >
 > Note⚠️⚠️⚠️: There are some limitations for Heroku free account, please check this [Free Dyno Hours](https://devcenter.heroku.com/articles/free-dyno-hours) if you want to use Heroku for your production service.
 
-![1653297768165.png](image/README/1653297768165.png)
+![1653297768165.png](docs/images/appid.png)
 
 ### Run the sample code
 
@@ -76,6 +76,35 @@ flutterfire configure
 6. Run the `flutter run`, sample code will run on your device.
 
 >  tips: Android devices need to ensure that the user agrees to the appropriate notification permissions.
+
+> Warning: If you are using flutter 3.0+, please switch to 3.0/call_invite branch for testing
+
+### demo introduction
+
+1. After the demo starts, it will automatically request zego token from your server and report your fcm token to your server
+—— You can follow here when you test to know if the process goes well
+
+![picture](./docs/images/demo-status.jpg#pic_center%20=100x)
+
+2. Every time the APP starts, a userid will be randomly obtained and displayed here
+![picture](./docs/images/random-userid.jpg#pic_center%20=100x)
+
+3. You can enter the userid of the other device here, and click the call button on the right to make a call invitation
+![picture](./docs/images/call-user.jpg#pic_center%20=100x)
+
+4. You can also enter the IDs of multiple users in the call input box to invite a group call. The call started in this way will enter the group call interface.
+
+5. When the demo receives a call invitation in the foreground, the flutter widget component will pop up at the top, you can click to accept or reject (you can customize this component)
+
+![picture](./docs/images/in-app-invite.jpg#pic_center%20=100x)
+
+6. When the demo receives a call invitation in the background, the system fcm notification will pop up, click the notification to enter the app and display the call invitation
+![picture](./docs/images/fcm-notification.jpg#pic_center%20=100x)
+
+
+7. The Android platform additionally implements custom notifications, you can directly click to accept/reject, or click the notification panel to enter the app to view the call invitation
+![picture](./docs/images/background-invite.jpg#pic_center%20=100x)
+
 
 ## Integrate the SDK into your project
 
