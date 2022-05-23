@@ -18,11 +18,11 @@ import 'notification/notification_ring.dart';
 import 'zego_express_manager.dart';
 
 // step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-int appID = ;
+int appID = 1;
 
 // step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
 // Heroku server url for example 'https://xxx.herokuapp.com'
-String tokenServerUrl = ;
+String tokenServerUrl = '';
 
 // test data
 String roomID = '123456';
@@ -34,7 +34,6 @@ RemoteMessage? backendMessage;
 Future<void> main() async {
   // need ensureInitialized
   WidgetsFlutterBinding.ensureInitialized();
-
   // need init Notification
   await NotificationManager.shared.init();
 

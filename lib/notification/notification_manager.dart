@@ -227,13 +227,20 @@ class NotificationManager {
           wakeUpScreen: true,
           fullScreenIntent: true,
           autoDismissible: false,
-          payload: {
-            "callerUserID": message.data["callerUserID"],
-            "callerUserName": message.data["callerUserName"],
-            "callerIconUrl": message.data["callerIconUrl"],
-            "roomID": message.data["roomID"],
-            "targetUserIDList": message.data["targetUserIDList"]
-          },
+          payload: message.data.containsKey("targetUserIDList")
+              ? {
+                  "callerUserID": message.data["callerUserID"],
+                  "callerUserName": message.data["callerUserName"],
+                  "callerIconUrl": message.data["callerIconUrl"],
+                  "roomID": message.data["roomID"],
+                  "targetUserIDList": message.data["targetUserIDList"]
+                }
+              : {
+                  "callerUserID": message.data["callerUserID"],
+                  "callerUserName": message.data["callerUserName"],
+                  "callerIconUrl": message.data["callerIconUrl"],
+                  "roomID": message.data["roomID"]
+                },
           notificationLayout: NotificationLayout.Default,
         ),
         actionButtons: [
