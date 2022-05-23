@@ -1,4 +1,5 @@
 # ZEGOCLOUD easy example
+
 ZEGOCLOUD's easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
 
 ## Getting started
@@ -33,11 +34,12 @@ $ flutter doctor
 ```
 
 ![image](docs/images/flutter_doctor.png)
+
 * If the Android development environment is ready, the **Android toolchain** item shows a ready state.
 * If the iOS development environment is ready, the **Xcode**  item shows a ready state.
 
-
 #### Check firebase development environment
+
 Install firebase and flutterfire command line tools according to [this document](https://firebase.google.com/docs/flutter/setup)
 
 So that you can execute the following command in the next step
@@ -47,6 +49,23 @@ firebase login
 flutterfire configure
 ```
 
+#### Modify the project configurations
+
+* You need to set `appID` to your own account, which can be obtained in the [ZEGO Admin Console](https://console.zegocloud.com/).
+* You need to set `serverUrl` to a valid URL that can be obtained for Zego auth token and post FCM notification request.
+
+> We use Heroku for test backen service, you can deploy the token generation service with one simple click.
+>
+> [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs)
+>
+> Once deployed completed, you will get an url for your instance, try accessing `https://<heroku url>/access_token?uid=1234` to check if it works.
+>
+> Check [easy_example_call_server_nodejs](https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs) for more details.
+>
+> Note⚠️⚠️⚠️: There are some limitations for Heroku free account, please check this [Free Dyno Hours](https://devcenter.heroku.com/articles/free-dyno-hours) if you want to use Heroku for your production service.
+
+![1653297768165.png](image/README/1653297768165.png)
+
 ### Run the sample code
 
 1. Open Terminal, navigate to the `easy_example_flutter` folder.
@@ -54,9 +73,12 @@ flutterfire configure
 3. Run the `firebase login` to connect your firebase account
 4. Run the `flutterfire configure` Select your firebase project and configure android and ios project.
 5. The ios project needs to configure your development team in xcode and upload the apns certificate to the fcm console of firebase, refer to [this document](https://firebase.flutter.dev/docs/messaging/apple-integration)
-5. Run the `flutter run`, sample code will run on your device.
+6. Run the `flutter run`, sample code will run on your device.
+
+>  tips: Android devices need to ensure that the user agrees to the appropriate notification permissions.
 
 ## Integrate the SDK into your project
+
 [![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
 
 ### Add zego_express_engine into your project
@@ -64,20 +86,25 @@ flutterfire configure
 `$ flutter pub add zego_express_engine`
 
 `$ flutter pub get`
+
 ### Turn off some classes's confusion
 
 To prevent the ZEGO SDK public class names from being obfuscated, please complete the following steps:
 
 1. Create `proguard-rules.pro` file under [your_project > android > app] with content as show below:
+
 ```
 -keep class **.zego.**  { *; }
 ```
+
 ![image](docs/images/proguard_rules_file.jpg)
 
 2. Add config code to `android/app/build.gradle` for release build:
+
 ```
 proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 ```
+
 ![image](docs/images/proguard_rules_config.jpg)
 
 ### Grant permission
@@ -88,6 +115,7 @@ You need to grant the network access, camera, and microphone permission to make 
 
 Open [your_project > android > app > src > main > AndroidManifest.xml] file and add the lines below out side the "application" tag:
 ![image](docs/images/android_add_permission.gif)
+
 ```xml
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -104,6 +132,7 @@ Open [your_project > android > app > src > main > AndroidManifest.xml] file and 
 
 Open [your_project > ios > Runner > Info.plist] and add the lines below inside the "dict" tag:
 ![image](docs/images/ios_add_permission.gif)
+
 ```xml
 ...
 <dict>
@@ -180,6 +209,7 @@ If your project needs to use the video communication functionality, you need to 
 **getLocalVideoView**
 
 Call this method after join room
+
 ```js
 ...
 
@@ -216,6 +246,7 @@ void initState() {
 ```
 
 #### Leave room
+
 When you want to leave the room, you can call the leaveroom interface.
 
 ```js
