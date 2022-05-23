@@ -94,6 +94,8 @@ flutterfire configure
 
 4. You can also enter the IDs of multiple users in the call input box to invite a group call. The call started in this way will enter the group call interface.
 
+![picture](./docs/images/group-call.jpg#pic_center%20=100x)
+
 5. When the demo receives a call invitation in the foreground, the flutter widget component will pop up at the top, you can click to accept or reject (you can customize this component)
 
 ![picture](./docs/images/in-app-invite.jpg#pic_center%20=100x)
