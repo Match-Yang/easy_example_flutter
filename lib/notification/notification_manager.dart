@@ -156,8 +156,9 @@ class NotificationManager {
               CallBloc.shared.add(CallInviteDecline());
               return;
             case 'accept':
-              CallBloc.shared
-                  .add(CallInviteAccept(notifycation.payload!['roomID']!));
+              CallBloc.shared.add(CallInviteAccept(
+                  notifycation.payload!['roomID']!,
+                  notifycation.payload!.containsKey("targetUserIDList")));
               return;
             default:
               break;
@@ -167,7 +168,8 @@ class NotificationManager {
             notifycation.payload!['callerUserID']!,
             notifycation.payload!['callerUserName']!,
             notifycation.payload!['callerIconUrl']!,
-            notifycation.payload!['roomID']!));
+            notifycation.payload!['roomID']!,
+            notifycation.payload!.containsKey("targetUserIDList")));
       });
     }
   }
@@ -229,7 +231,8 @@ class NotificationManager {
             "callerUserID": message.data["callerUserID"],
             "callerUserName": message.data["callerUserName"],
             "callerIconUrl": message.data["callerIconUrl"],
-            "roomID": message.data["roomID"]
+            "roomID": message.data["roomID"],
+            "targetUserIDList": message.data["targetUserIDList"]
           },
           notificationLayout: NotificationLayout.Default,
         ),

@@ -194,7 +194,7 @@ class _HomePageState extends State<HomePage> {
                       },
                       onAccept: () {
                         NotificationRing.shared.stopRing();
-                        CallBloc.shared.add(CallInviteAccept(callState.roomID));
+                        CallBloc.shared.add(CallInviteAccept(callState.roomID, callState.isGroupCall));
                       },
                     ),
                   ),
