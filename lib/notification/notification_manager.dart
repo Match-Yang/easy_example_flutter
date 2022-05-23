@@ -101,14 +101,16 @@ class NotificationManager {
     );
     // For handling the received notifications
     FirebaseMessaging.onMessage.listen(onFirebaseForegroundMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(onFirebaseForegroundMessage);
-    FirebaseMessaging.instance
-        .getInitialMessage()
-        .then((RemoteMessage? message) {
-      if (message != null) {
-        onFirebaseForegroundMessage(message);
-      }
-    });
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      FirebaseMessaging.onMessageOpenedApp.listen(onFirebaseOpenedAppMessage);
+      FirebaseMessaging.instance
+          .getInitialMessage()
+          .then((RemoteMessage? message) {
+        if (message != null) {
+          onFirebaseForegroundMessage(message);
+        }
+      });
+    }
 
     // 3. Grant permission, for iOS only, Android ignore by default
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
@@ -120,50 +122,60 @@ class NotificationManager {
   }
 
   void requestAwesomeNotificationsPermission() async {
-    List<NotificationPermission> requestedPermissions = [
-      NotificationPermission.Sound,
-      NotificationPermission.FullScreenIntent,
-      NotificationPermission.Alert,
-      NotificationPermission.Sound,
-      NotificationPermission.Badge,
-      NotificationPermission.Vibration,
-      NotificationPermission.Light,
-    ];
-    await AwesomeNotifications().requestPermissionToSendNotifications(
-        channelKey: firebaseChannelKey, permissions: requestedPermissions);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      List<NotificationPermission> requestedPermissions = [
+        NotificationPermission.Sound,
+        NotificationPermission.FullScreenIntent,
+        NotificationPermission.Alert,
+        NotificationPermission.Sound,
+        NotificationPermission.Badge,
+        NotificationPermission.Vibration,
+        NotificationPermission.Light,
+      ];
+      await AwesomeNotifications().requestPermissionToSendNotifications(
+          channelKey: firebaseChannelKey, permissions: requestedPermissions);
+    }
   }
 
   void listenAwesomeNotification() {
-    //  BEFORE!! MaterialApp widget, starts to listen the notification actions
-    AwesomeNotifications()
-        .actionStream
-        .listen((ReceivedNotification notifycation) {
-      AndroidForegroundService.stopForeground();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      //  BEFORE!! MaterialApp widget, starts to listen the notification actions
+      AwesomeNotifications()
+          .actionStream
+          .listen((ReceivedNotification notifycation) {
+        AndroidForegroundService.stopForeground();
 
-      if (notifycation.channelKey != firebaseChannelKey) {
-        log('unknown channel key');
-        return;
-      }
-      if (notifycation is ReceivedAction) {
-        var action = notifycation;
-        switch (action.buttonKeyPressed) {
-          case 'decline':
-            CallBloc.shared.add(CallInviteDecline());
-            return;
-          case 'accept':
-            CallBloc.shared
-                .add(CallInviteAccept(notifycation.payload!['roomID']!));
-            return;
-          default:
-            break;
+        if (notifycation.channelKey != firebaseChannelKey) {
+          log('unknown channel key');
+          return;
         }
-      }
-      CallBloc.shared.add(CallReceiveInvited(
-          notifycation.payload!['callerUserID']!,
-          notifycation.payload!['callerUserName']!,
-          notifycation.payload!['callerIconUrl']!,
-          notifycation.payload!['roomID']!));
-    });
+        if (notifycation is ReceivedAction) {
+          var action = notifycation;
+          switch (action.buttonKeyPressed) {
+            case 'decline':
+              CallBloc.shared.add(CallInviteDecline());
+              return;
+            case 'accept':
+              CallBloc.shared
+                  .add(CallInviteAccept(notifycation.payload!['roomID']!));
+              return;
+            default:
+              break;
+          }
+        }
+        CallBloc.shared.add(CallReceiveInvited(
+            notifycation.payload!['callerUserID']!,
+            notifycation.payload!['callerUserName']!,
+            notifycation.payload!['callerIconUrl']!,
+            notifycation.payload!['roomID']!));
+      });
+    }
+  }
+
+  Future<void> onFirebaseOpenedAppMessage(RemoteMessage message) async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      onFirebaseForegroundMessage(message);
+    }
   }
 
   Future<void> onFirebaseForegroundMessage(RemoteMessage message) async {
@@ -190,7 +202,7 @@ class NotificationManager {
     NotificationRing.shared.init();
     NotificationRing.shared.startRing();
     if (defaultTargetPlatform == TargetPlatform.android) {
-      Future.delayed(const Duration(milliseconds: 10000), () {
+      Future.delayed(const Duration(milliseconds: 2000), () {
         // todo control here
         // Android maybe need cross process
         NotificationRing.shared.uninit();
