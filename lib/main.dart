@@ -4,15 +4,21 @@ import 'dart:math' as math;
 
 import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:http/http.dart' as http;
+
+// TODO mark is for let you know you need to do something, please check all of it!
+//\/\/\/\/\/\/\/\/\/\/\/\/\/ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+// For how to use ZEGOCLOUD's API: https://docs.zegocloud.com/article/5560
+//\/\/\/\/\/\/\/\/\/\/\/\/\ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
 
 void main() {
   runApp(const MyApp());
 }
 
+/// MyApp class is use for example only
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -34,13 +40,15 @@ class MyApp extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 0;
+  final int appID = ;
 
   // Heroku server url for example
   // Get the server from: https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs
-  final String tokenServerUrl = ''; // https://xxx.herokuapp.com
+  final String tokenServerUrl = ; // https://xxx.herokuapp.com
 
   // TODO Test data >>>>>>>>>>>>>>
   @override
@@ -50,6 +58,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String roomID = "0";
 
+  /// Check the permission or ask for the user if not grant
+  ///
+  /// TODO Copy to your project
   Future<bool> requestPermission() async {
     PermissionStatus microphoneStatus = await Permission.microphone.request();
     if (microphoneStatus != PermissionStatus.granted) {
@@ -64,8 +75,12 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-  // Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
-  // TODO Token get from ZEGOCLOUD's console is for test only, please get it from your server: https://docs.zegocloud.com/article/14140
+  /// Get the ZEGOCLOUD's API access token
+  ///
+  /// There are some API of ZEGOCLOUD need to pass the token to use.
+  /// We use Heroku service for test.
+  /// You can get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
+  /// Read more about the token: https://docs.zegocloud.com/article/14140
   Future<String> getToken(String userID) async {
     String tokenUrl = '${widget.tokenServerUrl}/access_token?uid=$userID';
     tokenUrl = tokenUrl.replaceAll('herokuapp.com//', 'herokuapp.com/');
@@ -78,6 +93,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Get the necessary arguments to join the room for start the talk or live streaming
   Future<Map<String, String>> getJoinRoomArgs(String role) async {
     final userID = math.Random().nextInt(10000).toString();
     final String token = await getToken(userID);
@@ -134,6 +150,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+/// LivePage use for display the Host and the Co-Host Video view
+///
+/// TODO You can copy the completed class to your project
 class LivePage extends StatefulWidget {
   const LivePage({Key? key}) : super(key: key);
 

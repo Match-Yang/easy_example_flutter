@@ -41,10 +41,11 @@ $ flutter doctor
 1. Open the easy_example_flutter project in Android Studio.
 2. Make sure the **developer mode** and **USB debugging** are enabled for the Android device, and connect the Android device to your computer.
 3. If the **Running Devices** box in the upper area changes to the device name you are using, which means you are ready to run the sample code.
-4. Get your AppID and temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project for both User1 and User2.
-   ![image](docs/images/generate_token.gif)
+4. Get your AppID from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project
+5. Deploy a Heroku service for generate ZEGOCLOUD access token by just click the button below
+    [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs)
    ![image](docs/images/setup_token.jpg)
-5. Run the sample code on your device to experience the easy_example_flutter.
+6. Run the sample code on your device to experience the easy_example_flutter.
 
 ## Integrate the SDK into your project
 [![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
