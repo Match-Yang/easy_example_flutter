@@ -34,6 +34,13 @@ typedef UserIDViewIDMap = Map<String, int>;
 typedef StreamIDParticipantMap = Map<String, ZegoParticipant>;
 typedef ZegoMediaOptions = List<ZegoMediaOption>;
 
+/// A wrapper for using ZegoExpressEngine's methods
+///
+/// We do some basic logic inside this class, if you use it somewhere then we will recommend you use it anywhere.
+/// If you don't understand ZegoExpressEngine very well, do not mix two of the class on your code.
+/// Instead you should use every methods call of ZegoExpressEngine inside this class
+/// and do everything you want via ZegoExpressManager
+/// Read more about ZegoExpressEngine: https://docs.zegocloud.com/article/3559
 class ZegoExpressManager {
   factory ZegoExpressManager() {
     return _singleton;
@@ -41,17 +48,25 @@ class ZegoExpressManager {
 
   ZegoExpressManager._internal();
 
+  /// Instance of ZegoExpressManager
+  ///
+  /// You should call all of the method via this instance
   static final shared = ZegoExpressManager();
   static final ZegoExpressManager _singleton = ZegoExpressManager._internal();
 
+  /// When you join in the room it will let you know who is in the room right now with [userIDList] and will let you know who is joining the room or who is leaving after you have joined
   void Function(
           ZegoUpdateType updateType, List<String> userIDList, String roomID)?
       onRoomUserUpdate;
+  /// Trigger when device's status of user with [userID] has been update
   void Function(ZegoDeviceUpdateType updateType, String userID, String roomID)?
       onRoomUserDeviceUpdate;
+  /// Trigger when the access token will expire which mean you should call renewToken to set new token
   void Function(int remainTimeInSecond, String roomID)? onRoomTokenWillExpire;
+  /// Trigger when room extra info has been updated by you or others
   void Function(List<ZegoRoomExtraInfo> roomExtraInfoList)?
       onRoomExtraInfoUpdate;
+  /// Trigger when room's state changed
   void Function(ZegoRoomState state)? onRoomStateUpdate;
 
   bool _isPlayingStream = false;
@@ -64,6 +79,10 @@ class ZegoExpressManager {
     ZegoMediaOption.autoPlayVideo
   ];
 
+  /// Create SDK instance and setup some callbacks
+  ///
+  /// You need to call createEngine before call any of other methods of the SDK
+  /// Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/createEngine.html
   void createEngine(int appID) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
@@ -73,6 +92,7 @@ class ZegoExpressManager {
     ZegoExpressEngine.createEngineWithProfile(profile);
 
     // Setup event handler
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomStreamUpdate.html
     ZegoExpressEngine.onRoomStreamUpdate = (String roomID,
         ZegoUpdateType updateType,
         List<ZegoStream> streamList,
@@ -85,6 +105,7 @@ class ZegoExpressManager {
         }
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomUserUpdate.html
     ZegoExpressEngine.onRoomUserUpdate =
         (String roomID, ZegoUpdateType updateType, List<ZegoUser> userList) {
       List<String> userIDList = [];
@@ -113,6 +134,7 @@ class ZegoExpressManager {
         onRoomUserUpdate!(updateType, userIDList, roomID);
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRemoteCameraStateUpdate.html
     ZegoExpressEngine.onRemoteCameraStateUpdate =
         (String streamID, ZegoRemoteDeviceState state) {
       if (_streamDic.containsKey(streamID)) {
@@ -126,6 +148,7 @@ class ZegoExpressManager {
         }
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRemoteMicStateUpdate.html
     ZegoExpressEngine.onRemoteMicStateUpdate =
         (String streamID, ZegoRemoteDeviceState state) {
       if (_streamDic.containsKey(streamID)) {
@@ -139,6 +162,7 @@ class ZegoExpressManager {
         }
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomStateUpdate.html
     ZegoExpressEngine.onRoomStateUpdate = (String roomID, ZegoRoomState state,
         int errorCode, Map<String, dynamic> extendedData) {
       _processLog("onRoomStateUpdate", state.index, errorCode);
@@ -146,18 +170,21 @@ class ZegoExpressManager {
         onRoomStateUpdate!(state);
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onPublisherStateUpdate.html
     ZegoExpressEngine.onPublisherStateUpdate = (String streamID,
         ZegoPublisherState state,
         int errorCode,
         Map<String, dynamic> extendedData) {
       _processLog("onPublisherStateUpdate", state.index, errorCode);
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onPlayerStateUpdate.html
     ZegoExpressEngine.onPlayerStateUpdate = (String streamID,
         ZegoPlayerState state,
         int errorCode,
         Map<String, dynamic> extendedData) {
       _processLog("onPlayerStateUpdate", state.index, errorCode);
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onNetworkQuality.html
     ZegoExpressEngine.onNetworkQuality = (String userID,
         ZegoStreamQualityLevel upstreamQuality,
         ZegoStreamQualityLevel downstreamQuality) {
@@ -171,12 +198,14 @@ class ZegoExpressManager {
         participant!.network = upstreamQuality;
       }
     };
+    // Read more about it:https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomTokenWillExpire.html
     ZegoExpressEngine.onRoomTokenWillExpire =
         (String roomID, int remainTimeInSecond) {
       if (onRoomTokenWillExpire != null) {
         onRoomTokenWillExpire!(remainTimeInSecond, roomID);
       }
     };
+    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomExtraInfoUpdate.html
     ZegoExpressEngine.onRoomExtraInfoUpdate =
         (String roomID, List<ZegoRoomExtraInfo> roomExtraInfoList) {
       if (_roomID == roomID) {
@@ -187,6 +216,14 @@ class ZegoExpressManager {
     };
   }
 
+  /// User [user] joins into the room with id [roomID] with [options] and then can talk to others who are in the room
+  ///
+  /// Options are different from scenario to scenario, here are some example
+  /// Video Call: [ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio, ZegoMediaOption.publishLocalVideo]
+  /// Live Streaming: - host: [ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio, ZegoMediaOption.publishLocalVideo]
+  /// Live Streaming: - audience:[ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio]
+  /// Chat Room: - host:[ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio]
+  /// Chat Room: - audience:[ZegoMediaOption.autoPlayAudio]
   Future<void> joinRoom(String roomID, ZegoUser user, String token,
       ZegoMediaOptions options) async {
     _participantDic.clear();
@@ -219,6 +256,7 @@ class ZegoExpressManager {
     }
   }
 
+  /// Return a widget with your own video
   Widget? getLocalVideoView() {
     if (_localParticipant.userID.isEmpty) {
       log("Error: [getLocalVideoView] You need to login room before you call getLocalVideoView");
@@ -237,8 +275,9 @@ class ZegoExpressManager {
     return previewViewWidget;
   }
 
-  // Get the view and call setState to set the view to render tree
-  // Call this function after join room
+  /// Return a widget that will render the video of a specific user
+  ///
+  /// Call this function after joining room
   Widget? getRemoteVideoView(String userID) {
     if (_roomID.isEmpty) {
       log("Error: [getRemoteVideoView] You need to join the room first and then get the videoView");
@@ -267,6 +306,7 @@ class ZegoExpressManager {
     }
   }
 
+  /// Turn on your camera if [enable] is true
   void enableCamera(bool enable) {
     if (enable && !_isPlayingStream) {
       ZegoExpressEngine.instance
@@ -286,6 +326,7 @@ class ZegoExpressManager {
     _localParticipant.camera = enable;
   }
 
+  /// Turn on your microphone if [enable] is true
   void enableMic(bool enable) {
     if (enable && !_isPlayingStream) {
       ZegoExpressEngine.instance
@@ -304,10 +345,12 @@ class ZegoExpressManager {
     _localParticipant.mic = enable;
   }
 
+  /// Switch to the front camera if [isFront] is true
   void switchFrontCamera(bool isFront) {
     ZegoExpressEngine.instance.useFrontCamera(isFront);
   }
 
+  /// Leave the room when you are done the talk or if you want to join another room
   void leaveRoom() {
     ZegoExpressEngine.instance.stopPublishingStream();
     ZegoExpressEngine.instance.stopPreview();
@@ -324,6 +367,16 @@ class ZegoExpressManager {
     _isPlayingStream = false;
   }
 
+  /// Set a new token to keep access ZEGOCLOUD's SDK while onRoomTokenWillExpire has been triggered
+  void renewToken(String roomID, String token) {
+    ZegoExpressEngine.instance.renewToken(roomID, token);
+  }
+
+  /// Set room extra information
+  ///
+  /// You can set some room-related business attributes, such as whether someone is Co-hosting.
+  /// You should call it after joining the room.
+  /// Restrictions: https://docs.zegocloud.com/article/7611
   Future<int> setRoomExtraInfo(String key, String value) async {
     if (_roomID.isEmpty) {
       log('Please login the room first');
