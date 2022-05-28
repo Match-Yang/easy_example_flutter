@@ -90,6 +90,9 @@ class HomePage extends StatelessWidget {
   }
 
   /// Get the necessary arguments to join the room for start the talk or live streaming
+  ///
+  ///  TODO DO NOT use special characters for userID and roomID.
+  ///  We recommend only contain letters, numbers, and '_'.
   Future<Map<String, String>> getJoinRoomArgs() async {
     final userID = math.Random().nextInt(10000).toString();
     final String token = await getToken(userID);
