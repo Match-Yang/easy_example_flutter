@@ -67,6 +67,9 @@ class NotificationManager {
                 channelGroupName: firebaseChannelGroupName)
           ]);
     }
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    String? token = await messaging.getToken();
+    print('FCM token: $token');
   }
 
   void uninit() async {
