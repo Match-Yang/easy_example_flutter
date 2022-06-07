@@ -75,23 +75,21 @@ flutterfire configure
 5. The ios project needs to configure your development team in xcode and upload the apns certificate to the fcm console of firebase, refer to [this document](https://firebase.flutter.dev/docs/messaging/apple-integration)
 6. Run the `flutter run`, sample code will run on your device.
 
->  tips: Android devices need to ensure that the user agrees to the appropriate notification permissions.
+> tips: Android devices need to ensure that the user agrees to the appropriate notification permissions.
 
 > Warning: If you are using flutter 3.0+, please switch to 3.0/call_invite branch for testing
 
 ### demo introduction
 
 1. After the demo starts, it will automatically request zego token from your server and report your fcm token to your server
-—— You can follow here when you test to know if the process goes well
+   —— You can follow here when you test to know if the process goes well
 
 ![picture](./docs/images/demo-status.jpg#pic_center%20=100x)
 
 2. Every time the APP starts, a userid will be randomly obtained and displayed here
-![picture](./docs/images/random-userid.jpg#pic_center%20=100x)
-
+   ![picture](./docs/images/random-userid.jpg#pic_center%20=100x)
 3. You can enter the userid of the other device here, and click the call button on the right to make a call invitation
-![picture](./docs/images/call-user.jpg#pic_center%20=100x)
-
+   ![picture](./docs/images/call-user.jpg#pic_center%20=100x)
 4. You can also enter the IDs of multiple users in the call input box to invite a group call. The call started in this way will enter the group call interface.
 
 ![picture](./docs/images/group-call.jpg#pic_center%20=100x)
@@ -101,31 +99,618 @@ flutterfire configure
 ![picture](./docs/images/in-app-invite.jpg#pic_center%20=100x)
 
 6. When the demo receives a call invitation in the background, the system fcm notification will pop up, click the notification to enter the app and display the call invitation
-![picture](./docs/images/fcm-notification.jpg#pic_center%20=100x)
-
-
+   ![picture](./docs/images/fcm-notification.jpg#pic_center%20=100x)
 7. The Android platform additionally implements custom notifications, you can directly click to accept/reject, or click the notification panel to enter the app to view the call invitation
-![picture](./docs/images/background-invite.jpg#pic_center%20=100x)
+   ![picture](./docs/images/background-invite.jpg#pic_center%20=100x)
+
+## Integrate into your project
+
+### Create new project
+
+We create a new project here to demonstrate how to integrate ZEGOCLOUD and Firebase into your project
+
+```
+
+flutter create --template app --org im.zegocloud.eetest.callinvite --platforms=android,ios eetest_callinvite
+
+```
+
+You will see the project structure like this:
+
+![1654052655879.png](docs/images/1654052655879.png)
+
+#### Add flutter dependencies
+
+In this demo project, the package usage instructions are as follows:
+
+1. we use firebase_messaging and firebase_core to receive firebase cloud message
+2. zego_express_engine is zegocloud's video/audio sdk
+3. we use permission_handler to manage app permission
+4. we use http to send http request
+5. we use audioplayers to  ring the bell
+6. we use flutter_vibrate to do the phone vibrate
+7. we use flutter_bloc and bloc to make state managing easy
+8. we use cached_network_image to  show user avatar
+9. we use awesome_notifications to show custom notifications
+
+In pubspec.yaml in the project root directory, add these dependencies
+
+```
+
+  ### * we use firebase_messaging and firebase_core to receive firebase cloud message
+
+  firebase_messaging: any
+
+  firebase_core: any
+
+  ### * zego_express_engine is zegocloud's video/audio sdk
+
+  zego_express_engine: any
+
+  ### * we use permission_handler to manage app permission
+
+  permission_handler: any
+
+  ### * we use http to send http request
+
+  http: any
+
+  ### * we use audioplayers to ring the bell
+
+  audioplayers: any
+
+  ### * we use flutter_vibrate to do the phone vibrate
+
+  flutter_vibrate: any
+
+  ### * we use flutter_bloc and bloc to make state managing easy
+
+  flutter_bloc: any
+
+  bloc: any
+
+  ### * we use cached_network_image to  show user avatar
+
+  cached_network_image: any
+
+  ### * we use awesome_notifications to show custom notifications
+
+  ### see https://github.com/rafaelsetragni/awesome_notifications/issues/365
+
+  awesome_notifications:
+
+    git: https://github.com/Yerannnnnn/awesome_notifications.git
 
 
-## Integrate the SDK into your project
 
-[![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
+```
 
-### Add zego_express_engine into your project
+Add to here.
 
-`$ flutter pub add zego_express_engine`
+![1654141089519.png](docs/images/1654141089519.png)
 
-`$ flutter pub get`
+After adding, execute `flutter pub get` to get it.
 
-### Turn off some classes's confusion
+#### Configure firebase project
+
+In order to demonstrate the whole process, we also create a new firebase project starting from 0, first install flttre's firebase supporting cli tool, and execute the following command
+
+```
+
+dart pub global activate flutterfire_cli
+
+firebase login
+
+flutterfire configure
+
+```
+
+![1654160634068.png](docs/images/1654160634068.png)
+
+Input our new project name, should notice that firebase project name needs lowercase and contain only characters.
+
+![1654160716240.png](docs/images/1654160716240.png)
+
+press enter, then will auto create new firebase project...
+
+![1654160794257.png](docs/images/1654160794257.png)
+
+then android and ios will be auto selected, we press enter to go on.
+
+![1654165588110.png](docs/images/1654165588110.png)
+
+then the cli will help you updat build.gradle to apply firebase configuration, great, we just need press enter to go on.
+
+![1654165576651.png](docs/images/1654165576651.png)
+
+success，The cli automatically helped us configure some configurations of the android and ios native projects.
+
+![1654165857289.png](docs/images/1654165857289.png)
+
+Also the cli helped us generated the ./lib/firebase_option.dart file, we will use this to call firebase's api later.
+
+![1654166186186.png](docs/images/1654166186186.png)
+
+#### Happy with copy code
+
+Now that the project is configured, we can start copying the code!
+
+we should copy these files from easy_example_flutter project to our new project.
+
+![1654508880407.png](docs/images/1654508880407.png)
+
+done:
+
+![1654508954870.png](docs/images/1654508954870.png)
+
+after copy assets, we need add assets in our pubspec.yaml
+
+```yaml
+
+assets:
+
+    - assets/audio/
+
+    - assets/images/
+
+```
+
+done:
+
+![1654509171255.png](docs/images/1654509171255.png)
+
+#### Modify minSdkVersion
+
+Since `awesome_notifications` requires minSdkVersion to be at least 21, we need to open `./android/app/build.gradle` and modify minSdkVersion to 21, as shown in the figure
+
+![1654155038131.png](docs/images/1654155038131.png)
+
+#### First try to flutter run
+
+then just run `flutter run` in our new project
+
+![1654167251250.png](docs/images/1654167251250.png)
+
+`flutter run` success! Of course, we haven't imported the copied code into main.dart yet. This step is just to confirm that we did a good job in the first few step 😆.
+
+![1654167338606.png](docs/images/1654167338606.png)
+
+### Test notification with server push
+
+#### Let's add some initialization logic
+
+Now that the plugin dependency of firebase has been added and the firebase project has been successfully associated, let's test the notification function of firebase first.
+
+To ensure that our app is notified when test messages are sent manually from the firebase console, we first need to initialize the firebase plugin in our app.
+
+The relevant initialization code has been written for you, just call `NotificationManager.shared.init();`!
+
+Because the initialization of some plugins needs to be executed before runApp and after `WidgetsFlutterBinding.ensureInitialized();`
+
+So we change the main function from
+
+````dart
+
+voidmain() {
+
+runApp(constMyApp());
+
+}
+
+````
+
+change into
+
+````dart
+
+Future<void> main() async {
+
+// need ensureInitialized
+
+WidgetsFlutterBinding.ensureInitialized();
+
+// need init Notification
+
+awaitNotificationManager.shared.init();
+
+runApp(constMyApp());
+
+}
+
+````
+
+and import NotificationManager.dart by `import'notification/notification_manager.dart';`
+
+> tips: If you also use vscode, you can use `command+.` to quickly import, which is very convenient, like this:![1654486873649.png](docs/images/1654486873649.png)
+
+When done, the code looks like this, we only modified the above part of main.dart.
+
+![1654486900806.png](docs/images/1654486900806.png)
+
+#### Get firebase cloud message token
+
+after you run `flutter run`, fcm token will be printed on the console. Note that it is printed before the app is fully launched, please refer to this screenshot below where the fcm token appears.
+
+![1654507150671.png](docs/images/1654507150671.png)
+
+#### Send test messages using firebase console
+
+> tips: Our test app doesn't yet have the logic to respond to notifications, so if a notification is received while the app is in the foreground, nothing will happen (don't worry, we'll do this later, it's easy).
+
+> So we need to switch the app to the background, and then send the notification message.
+
+> For the front-end and back-end related logic, you can check the description of firebase: https://firebase.flutter.dev/docs/messaging/usag
+
+> First, you need to switch the app to the background now, see tips!
+
+> First, you need to switch the app to the background now, see tips!
+
+> First, you need to switch the app to the background now, see tips!
+
+Go to `console.firebase.google.com`, and find your project, in the Messaging page, click `New campaign`.
+
+![1654496304031.png](docs/images/1654496304031.png)
+
+Click ``New campaign``,then select `Notification`
+
+![notification](docs/images/firebase-notifycation.gif)
+
+write any  `Notification title` and `Notification text`, then click Send test message, then input your device's token, click the `add icon`,then click `Test`.
+
+![send](docs/images/firebase-send.gif)
+
+now, you will receive a test notification like this!
+
+![1654508446657.png](docs/images/1654508446657.png)
+
+#### One-click deployment of heroku test service
+
+We use Heroku for test backen service, Even if you're not a backend developer, or even if your team uses another backend platform, don't worry, it's completely free for us to test!
+
+you can deploy the token generation service with one simple click!
+
+ [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs)
+
+Once deployed completed, you will get an url for your instance, try accessing `https://<heroku url>/access_token?uid=1234` to check if it works.
+
+Check [easy_example_call_server_nodejs](https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs) for more details.
+
+Note⚠️⚠️⚠️: There are some limitations for Heroku free account, please check this [Free Dyno Hours](https://devcenter.heroku.com/articles/free-dyno-hours) if you want to use Heroku for your production service.
+
+When deploying heroku, you need to get the relevant configuration of firebase here
+
+![1654512331256.png](docs/images/1654512331256.png)
+
+After the one-click deployment is complete, click here to get the public network link of your server
+
+![1654512390577.png](docs/images/1654512390577.png)
+
+Click Setting
+
+![1654512545634.png](docs/images/1654512545634.png)
+
+scroll down, you can see your domain here
+
+![1654512614648.png](docs/images/1654512614648.png)
+
+> tips: This is the project I'm using to write this doc test, and I'll turn it off anytime after I'm done writing the docs. (Of course, even if I don't turn it off, it won't work for you, because the project needs to be bound to the zego appid)
+
+#### Use postman to test our server
+
+We can do a simple test of the service using software like postman, I am using the `Thunder Client` plugin of vscode here.
+
+We send a test post request to `https://eetest-callinvite.herokuapp.com/call_invite`, the body is the following json
+
+````json
+
+{
+
+"targetUserID": "8759",
+
+"callerUserID": "admin",
+
+"callerUserName": "admin",
+
+"callerIconUrl": "http://img.icons8.com/color/48/000000/avatar.png",
+
+"roomID": "test_ooo"
+
+}
+
+````
+
+like this
+
+![1654512892474.png](docs/images/1654512892474.png)
+
+Of course, we can also use the curl command lineals
+
+```bash
+
+curl -X POST \
+
+'https://eetest-callinvite.herokuapp.com/call_invite' \
+
+  --header 'Accept: */*' \
+
+  --header 'User-Agent: Thunder Client (https://www.thunderclient.com)' \
+
+  --header 'Content-Type: application/json' \
+
+  --data-raw '{
+
+  "targetUserID": "8759",
+
+  "callerUserID": "admin",
+
+  "callerUserName": "admin",
+
+  "callerIconUrl": "http://img.icons8.com/color/48/000000/avatar.png",
+
+  "roomID": "test_ooo"
+
+}'
+
+```
+
+we will get response `{"ret":-2,"message":"No fcm token for user: 8759"}`,because we haven't told our server the relationship between uid and token.
+
+BTW:The main logic of our server is as follows:
+
+1. When the app goes online, inform the server of fcm_token and uid, and the server will record it in the table
+2. When the app needs to invite others, pass the uid to the server
+3. The server finds the fcm_token corresponding to the uid by searching
+4. The server sends a request to firebase cloud message and sends a message to the fcm_token
+5. The app receives the fcm_token and triggers the subsequent called process
+
+In this way, we have completed the construction of the server in an instant, and we continue to return to the client to complete the remaining logic.
+
+### Complete our test app
+
+In fact, this demo only requires us to add a text to main.dart to display our uid and an inputText to enter the uid of the user we want to call; The call page's' code and group call page's' code has been written, we can directly copy the code from this project !
+
+**In fact, we just copy main.dart to this project.**
+
+In the following sections, we explain some key logics.
+
+#### Some global test variables
+
+In the demo, we use global variables for simple processing. If you are integrating into your application, please adapt according to your code structure.
+
+```dart
+
+// step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+
+int appID = ;
+
+
+// step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+
+// Heroku server url for example 'https://xxx.herokuapp.com'
+
+String tokenServerUrl = ;
+
+
+// test data
+
+String userID = math.Random().nextInt(10000).toString();
+
+String targetID = '';
+
+```
+
+#### Widget related to userid  and call
+
+We use two ListTitle to display our uid and input the target userid, and the second listtile has a button to call our server interface to initiate a request call
+
+```dart
+
+ListTile(
+
+  leading: constIcon(Icons.person),
+
+  title: Text(
+
+'Your UserID is: $userID',
+
+    style:
+
+constTextStyle(fontSize: 20, color: Colors.blue),
+
+  ),
+
+),
+
+ListTile(
+
+  leading: constIcon(Icons.person_add),
+
+  title: TextField(
+
+    style:
+
+constTextStyle(fontSize: 20, color: Colors.blue),
+
+    keyboardType: TextInputType.number,
+
+    onChanged: (input) => targetID = input,
+
+    decoration: constInputDecoration(
+
+      hintStyle:
+
+TextStyle(fontSize: 15, color: Colors.blue),
+
+      hintText: 'please input target UserID',
+
+    ),
+
+  ),
+
+  trailing: ElevatedButton(
+
+    child: ready
+
+        ? constIcon(Icons.call)
+
+        : constText("please wait"),
+
+    onPressed: () {
+
+if (ready) {
+
+if (targetID.contains(',')) {
+
+inviteGroupCall(targetID.split(','));
+
+        } else {
+
+callInvite(targetID);
+
+        }
+
+      }
+
+    },
+
+  ),
+
+),
+
+```
+
+#### Use named routes to navigate page
+
+Declaration section
+
+![1654571714884.png](docs/images/1654571714884.png)
+
+Navigator section
+
+![1654571796131.png](docs/images/1654571796131.png)
+
+#### use bloc manage ui and state
+
+There are many ways to approach state management:setState, Provider, Redux, GetX, Riverpod, Bloc, etc.
+
+In the demo we use bloc, you can change it to any way you like. The logic of bloc is explained as follows:
+
+1. provider: create a bloc instance![1654572327652.png](docs/images/1654572327652.png)
+2. Listener : When a notification is received, the page jump is controlled by the listener![1654572365479.png](docs/images/1654572365479.png)
+3. builder:Use builder to display the invited widget when receiving a call invitation, otherwise it is just a placeholder container. ![1654572533520.png](docs/images/1654572533520.png)
+4. bloc.add:Use bolc's add method to trigger a state change when the user accepts or declines the call invitation.![1654572728908.png](docs/images/1654572728908.png)
+
+That's all about how we manage state using bloc in the demo.
+
+#### Some other key logics
+
+there also some other key logics, such as requesting token, requesting user permission, ringing, etc. Please refer to these codes for details
+
+- requestPermission
+- getExpressToken
+- NotificationRing.shared.startRing()
+
+### Project configuration
+
+Before we can run the app, we need to apply for some permissions and configure the project so that the app can receive offline messages, send notifications to users, ring and vibrate, etc.
+
+#### Android
+
+##### modify AndroidManifest
+
+first, open `./android/app/src/main/AndroidManifest.xml`, add these lines
+
+```xml
+
+<uses-permissionandroid:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+
+<uses-permissionandroid:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+<uses-permissionandroid:name="android.permission.VIBRATE"/>
+
+<uses-permissionandroid:name="android.permission.ACCESS_WIFI_STATE"/>
+
+<uses-permissionandroid:name="android.permission.RECORD_AUDIO"/>
+
+<uses-permissionandroid:name="android.permission.INTERNET"/>
+
+<uses-permissionandroid:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+<uses-permissionandroid:name="android.permission.CAMERA"/>
+
+<uses-permissionandroid:name="android.permission.BLUETOOTH"/>
+
+<uses-permissionandroid:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+<uses-permissionandroid:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+
+<uses-permissionandroid:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+<uses-permissionandroid:name="android.permission.READ_PHONE_STATE"/>
+
+<uses-permissionandroid:name="android.permission.WAKE_LOCK"/>
+
+<uses-permissionandroid:name="android.permission.FOREGROUND_SERVICE"/>
+
+
+<uses-feature
+
+android:glEsVersion="0x00020000"
+
+android:required="true"/>
+
+<uses-featureandroid:name="android.hardware.camera"/>
+
+<uses-featureandroid:name="android.hardware.camera.autofocus"/>
+
+```
+
+![1654585100616.png](docs/images/1654585100616.png)
+
+then add two activity property
+
+```xml
+
+            android:showWhenLocked="true"
+
+            android:turnScreenOn="true"
+
+```
+
+![1654585227508.png](docs/images/1654585227508.png)
+
+then add a service，
+
+```xml
+
+<serviceandroid:name="me.carda.awesome_notifications.services.ForegroundService"
+
+android:enabled="true"
+
+android:exported="true"
+
+android:stopWithTask="true"
+
+android:foregroundServiceType="phoneCall"></service>
+
+```
+
+ ![1654585282992.png](docs/images/1654585282992.png)
+
+You can refer to the file of this project for comparison
+
+##### Turn off some classes's confusion
 
 To prevent the ZEGO SDK public class names from being obfuscated, please complete the following steps:
 
 1. Create `proguard-rules.pro` file under [your_project > android > app] with content as show below:
 
 ```
+
+
 -keep class **.zego.**  { *; }
+
+
 ```
 
 ![image](docs/images/proguard_rules_file.jpg)
@@ -133,55 +718,64 @@ To prevent the ZEGO SDK public class names from being obfuscated, please complet
 2. Add config code to `android/app/build.gradle` for release build:
 
 ```
+
+
 proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+
 ```
 
 ![image](docs/images/proguard_rules_config.jpg)
 
-### Grant permission
+#### iOS
 
-You need to grant the network access, camera, and microphone permission to make your SDK work as except.
+##### project config
 
-#### For Android
+open xcode project, add Background Modes and Push Notifications,
 
-Open [your_project > android > app > src > main > AndroidManifest.xml] file and add the lines below out side the "application" tag:
-![image](docs/images/android_add_permission.gif)
+![1654588310438.png](docs/images/1654588310438.png)
 
-```xml
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-   <application
-   ...
-```
+![1654588355275.png](docs/images/1654588355275.png)
 
-#### For iOS
+then check these modes:
 
-Open [your_project > ios > Runner > Info.plist] and add the lines below inside the "dict" tag:
-![image](docs/images/ios_add_permission.gif)
+![1654588444151.png](docs/images/1654588444151.png)
+
+then add these info keys to `./ios/Runner/Info.plist`
 
 ```xml
-...
-<dict>
-	<key>NSCameraUsageDescription</key>
-	<string>We need to use your camera to help you join the voice interaction.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need to use your mic to help you join the voice interaction.</string>
-
-   ...
+    <key>NSCameraUsageDescription</key>
+    <string>We need to use your camera to help you join the voice interaction.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We need to use your mic to help you join the voice interaction.</string>
 ```
 
-### Copy `ZegoExpressManager` source code to your project
+##### linking APNs with FCM
 
-Copy `zego_express_manager.dart` file to [your_project > lib] folder.
+Referring to this document to
 
-### Method call
+1. Register a APNs key and downlonad the key file.
+2. Upload the downloaded file to firebase console, and enter the Key & Team IDs
 
-The calling sequence of the SDK interface is as follows:
+https://firebase.flutter.dev/docs/messaging/apple-integration#linking-apns-with-fcm
+
+### Play with our test app
+
+#### use postman test it !
+
+After the app is opened, you can use software like postman to send a call invitation to your server to test your app's performance in receiving notifications.
+
+#### let's call your second phone!
+
+Using two devices, you can use one device to call the other device by uid
+
+#### let's have a group call!
+
+Enter multiple uids separated by commas to initiate group call invitations
+
+## Introduction to using sdk
+
+In the demo, we call our sdk through ZegoExpressManager, The calling sequence of the SDK interface is as follows:
 createEngine --> joinRoom --> getLocalVideoView/getRemoteVideoView --> leaveRoom
 
 #### Create engine
