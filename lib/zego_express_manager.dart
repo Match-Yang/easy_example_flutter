@@ -56,8 +56,8 @@ class ZegoExpressManager {
 
   bool _isPlayingStream = false;
   ZegoParticipant _localParticipant = ZegoParticipant("", "");
-  UserIDParticipantMap _participantDic = {};
-  StreamIDParticipantMap _streamDic = {};
+  final UserIDParticipantMap _participantDic = {};
+  final StreamIDParticipantMap _streamDic = {};
   String _roomID = "";
   ZegoMediaOptions _mediaOptions = [
     ZegoMediaOption.autoPlayAudio,

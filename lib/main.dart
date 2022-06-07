@@ -23,11 +23,8 @@ int appID = ;
 String tokenServerUrl = ;
 
 // test data
-String roomID = '123456';
 String userID = math.Random().nextInt(10000).toString();
 String targetID = '';
-
-RemoteMessage? backendMessage;
 
 Future<void> main() async {
   // need ensureInitialized
@@ -93,11 +90,10 @@ class _HomePageState extends State<HomePage> {
       listener: (context, state) {
         if (state is CallInviteAccepted) {
           var callState = state;
-          roomID = callState.roomID;
           var roomArgs = {
             'userID': userID,
             'token': expressToken,
-            'roomID': roomID,
+            'roomID': callState.roomID,
             'appID': appID.toString(),
           };
           if(callState.isGroupCall) {
@@ -246,15 +242,6 @@ class _HomePageState extends State<HomePage> {
         expressToken = token;
       });
     });
-  }
-
-  Map<String, String> getJoinRoomArgs() {
-    return {
-      'userID': userID,
-      'token': expressToken,
-      'roomID': roomID,
-      'appID': appID.toString(),
-    };
   }
 
   void callInvite(String targetID) {
