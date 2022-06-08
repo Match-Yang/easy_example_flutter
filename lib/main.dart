@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:math' as math;
 
-import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:http/http.dart' as http;
+
+import 'call_page.dart';
+import 'group_call_page.dart';
 
 // TODO mark is for let you know you need to do something, please check all of it!
 //\/\/\/\/\/\/\/\/\/\/\/\/\/ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home_page': (context) => HomePage(),
         '/call_page': (context) => CallPage(),
+        '/group_call_page': (context) => GroupCallPage(),
       },
     );
   }
@@ -43,16 +45,11 @@ class HomePage extends StatelessWidget {
 
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 0;
-
-  // TODO This room id for test only
-  //  You can talk to other user with the same roomID
-  //  So you need to set an unique roomID for every talk or live streaming
-  final String roomID = '123456';
+  final int appID = ;
 
   // TODO Heroku server url for example
   // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
-  final String tokenServerUrl = ''; // https://xxx.herokuapp.com
+  final String tokenServerUrl = ; // https://xxx.herokuapp.com
 
 
   /// Check the permission or ask for the user if not grant
@@ -93,7 +90,7 @@ class HomePage extends StatelessWidget {
   ///
   ///  TODO DO NOT use special characters for userID and roomID.
   ///  We recommend only contain letters, numbers, and '_'.
-  Future<Map<String, String>> getJoinRoomArgs() async {
+  Future<Map<String, String>> getJoinRoomArgs(String roomID) async {
     final userID = math.Random().nextInt(10000).toString();
     final String token = await getToken(userID);
     return {
@@ -118,189 +115,25 @@ class HomePage extends StatelessWidget {
           ElevatedButton(
               onPressed: () async {
                 await requestPermission();
+                // TODO This room id for test only
+                //  You can talk to other user with the same roomID
+                //  So you need to set an unique roomID for every talk
                 Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: await getJoinRoomArgs());
+                    arguments: await getJoinRoomArgs("123456_1v1"));
               },
-              child: const Text('Join Room')),
+              child: const Text('Start 1v1 talk')),
+          ElevatedButton(
+              onPressed: () async {
+                await requestPermission();
+                // TODO This room id for test only
+                //  You can talk to other user with the same roomID
+                //  So you need to set an unique roomID for every talk
+                Navigator.pushReplacementNamed(context, '/group_call_page',
+                    arguments: await getJoinRoomArgs("654321_group"));
+              },
+              child: const Text('Start group talk')),
         ],
       ),
-    );
-  }
-}
-
-/// CallPage use for display the Caller Video view and the Callee Video view
-///
-/// TODO You can copy the completed class to your project
-class CallPage extends StatefulWidget {
-  const CallPage({Key? key}) : super(key: key);
-
-  @override
-  State<CallPage> createState() => _CallPageState();
-}
-
-class _CallPageState extends State<CallPage> {
-  Widget _bigView = Container(
-    color: Colors.white,
-  );
-  Widget _smallView = Container(
-    color: Colors.black54,
-  );
-  bool _joinedRoom = false;
-  bool _micEnable = true;
-  bool _cameraEnable = true;
-
-  void prepareSDK(int appID) {
-    // TODO You need to call createEngine before call any of other methods of the SDK
-    ZegoExpressManager.shared.createEngine(appID);
-    ZegoExpressManager.shared.onRoomUserUpdate =
-        (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
-      if (updateType == ZegoUpdateType.Add) {
-        for (final userID in userIDList) {
-          // For one-to-one call we just need to display the other user at the small view
-          setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-          });
-        }
-      }
-    };
-    ZegoExpressManager.shared.onRoomUserDeviceUpdate =
-        (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
-  }
-
-  @override
-  void didChangeDependencies() {
-    // Read data from HomePage
-    RouteSettings settings = ModalRoute.of(context)!.settings;
-    if (settings.arguments != null) {
-      // Read arguments
-      Map<String, String> obj = settings.arguments as Map<String, String>;
-      var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
-      var roomID = obj['roomID'] ?? "";
-      var appID = int.parse(obj['appID'] ?? "0");
-
-      // Prepare SDK
-      prepareSDK(appID);
-
-      // Join room and wait for other...
-      if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        // We are making a Video Call example so we use the options with publish video/audio and auto play video/audio
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
-          ZegoMediaOption.publishLocalAudio,
-          ZegoMediaOption.publishLocalVideo,
-          ZegoMediaOption.autoPlayAudio,
-          ZegoMediaOption.autoPlayVideo
-        ]);
-        // You can get your own view and display it immediately after joining the room
-        setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
-          _joinedRoom = true;
-        });
-      }
-    }
-    super.didChangeDependencies();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Stack(
-          children: <Widget>[
-            SizedBox.expand(
-              child: _bigView,
-            ),
-            Positioned(
-                top: 100,
-                right: 16,
-                child: SizedBox(
-                  width: 114,
-                  height: 170,
-                  child: _smallView,
-                )),
-            Positioned(
-                bottom: 100,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Microphone control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _micEnable ? Icons.mic : Icons.mic_off,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableMic(!_micEnable);
-                        setState(() {
-                          _micEnable = !_micEnable;
-                        });
-                      },
-                    ),
-                    // End call button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.red,
-                      ),
-                      child: const Icon(
-                        Icons.call_end,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.leaveRoom();
-                        setState(() {
-                          _bigView = Container(
-                            color: Colors.white,
-                          );
-                          _smallView = Container(
-                            color: Colors.black54,
-                          );
-                          _joinedRoom = false;
-                        });
-                        // Back to home page
-                        Navigator.pushReplacementNamed(context, '/home_page');
-                      },
-                    ),
-                    // Camera control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _cameraEnable
-                            ? Icons.camera_alt
-                            : Icons.camera_alt_outlined,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableCamera(!_cameraEnable);
-                        setState(() {
-                          _cameraEnable = !_cameraEnable;
-                        });
-                      },
-                    ),
-                  ],
-                )),
-          ],
-        ),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
