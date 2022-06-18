@@ -5,6 +5,7 @@ import 'package:easy_example_flutter/group_call_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
@@ -210,6 +211,7 @@ class _HomePageState extends State<HomePage> {
       Uri.parse('$tokenServerUrl/store_fcm_token'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
+        'deviceType': defaultTargetPlatform.toString().split(".").last,
         'token': fcmToken,
         'userID': userID,
       }),
