@@ -8,48 +8,39 @@ import 'package:flutter_vibrate/flutter_vibrate.dart';
 
 // Project imports:
 
-const String callRingName = 'CallRing.wav';
+const String callRingName = 'audio/CallRing.wav';
 
 class NotificationRing {
-  static var shared = NotificationRing();
+  NotificationRing._internal();
+  factory NotificationRing() => shared;
+  static late final NotificationRing shared = NotificationRing._internal();
 
   bool isRingTimerRunning = false;
   AudioPlayer? audioPlayer;
-  late AudioCache audioCache;
 
   void init() {
-    audioCache = AudioCache(
-      prefix: 'assets/audio/',
-      fixedPlayer: AudioPlayer()..setReleaseMode(ReleaseMode.STOP),
-    );
+    audioPlayer ??= AudioPlayer()..setReleaseMode(ReleaseMode.loop);
   }
 
   void uninit() async {
     stopRing();
 
-    await audioCache.clearAll();
+    await audioPlayer?.dispose();
+    audioPlayer = null;
   }
 
   void startRing() async {
+    assert(audioPlayer != null);
     if (isRingTimerRunning) {
       log('ring is running');
       return;
     }
-
-    log('start ring');
-
     isRingTimerRunning = true;
-
-    await audioCache.loop(callRingName).then((player) => audioPlayer = player);
+    audioPlayer!.play(AssetSource(callRingName));
     Vibrate.vibrate();
-
     Timer.periodic(const Duration(seconds: 1), (Timer timer) async {
-      log('ring timer periodic');
       if (!isRingTimerRunning) {
-        log('ring timer ended');
-
-        audioPlayer?.stop();
-
+        audioPlayer!.stop();
         timer.cancel();
       } else {
         Vibrate.vibrate();
@@ -58,10 +49,8 @@ class NotificationRing {
   }
 
   void stopRing() async {
-    log('stop ring');
-
+    assert(audioPlayer != null);
     isRingTimerRunning = false;
-
-    audioPlayer?.stop();
+    audioPlayer!.stop();
   }
 }

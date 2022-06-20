@@ -1,7 +1,9 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:developer';
+import 'dart:ui';
 
 // Flutter imports:
 import 'package:awesome_notifications/android_foreground_service.dart';
@@ -23,6 +25,7 @@ const firebaseChannelGroupName = 'Firebase group';
 const firebaseChannelKey = 'firebase_channel';
 const firebaseChannelName = 'Firebase notifications';
 const firebasechannelDescription = 'Notification channel for firebase';
+const backgroundIsolatePortName = 'notification_manager_isolate_port';
 
 class NotificationManager {
   static var shared = NotificationManager();
@@ -147,6 +150,8 @@ class NotificationManager {
           .actionStream
           .listen((ReceivedNotification notifycation) {
         AndroidForegroundService.stopForeground();
+        IsolateNameServer.lookupPortByName(backgroundIsolatePortName)
+            ?.send("stop_ring");
 
         if (notifycation.channelKey != firebaseChannelKey) {
           log('unknown channel key');
@@ -204,13 +209,15 @@ class NotificationManager {
 
   Future<void> onFirebaseRemoteMessageReceive(RemoteMessage message) async {
     log('remote message receive: ${message.data}');
-    NotificationRing.shared.init();
     NotificationRing.shared.startRing();
     if (defaultTargetPlatform == TargetPlatform.android) {
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        // todo control here
-        // Android maybe need cross process
-        NotificationRing.shared.uninit();
+      final ReceivePort backgroundPort = ReceivePort();
+      IsolateNameServer.registerPortWithName(
+          backgroundPort.sendPort, backgroundIsolatePortName);
+      backgroundPort.listen((dynamic message) {
+        NotificationRing.shared.stopRing();
+        backgroundPort.close();
+        IsolateNameServer.removePortNameMapping(backgroundIsolatePortName);
       });
 
       AndroidForegroundService.startForeground(
@@ -223,7 +230,6 @@ class NotificationManager {
           ticker: "You have a new call",
           body: "${message.data["callerUserID"]} is calling you.",
           largeIcon: 'asset://assets/images/invite_voice.png',
-          customSound: 'asset://assets/audio/CallRing.wav',
           category: NotificationCategory.Call,
           backgroundColor: Colors.white,
           roundedLargeIcon: true,
@@ -274,6 +280,6 @@ Future<void> onFirebaseBackgroundMessage(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  NotificationRing.shared.init();
   NotificationManager.shared.onFirebaseRemoteMessageReceive(message);
 }

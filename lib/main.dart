@@ -97,8 +97,9 @@ class _HomePageState extends State<HomePage> {
             'roomID': callState.roomID,
             'appID': appID.toString(),
           };
-          if(callState.isGroupCall) {
-            Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
+          if (callState.isGroupCall) {
+            Navigator.pushNamed(context, '/group_call_page',
+                arguments: roomArgs);
           } else {
             Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
           }
@@ -169,29 +170,19 @@ class _HomePageState extends State<HomePage> {
               case CallInviteReceiving:
                 NotificationRing.shared.startRing();
                 var callState = state as CallInviteReceiving;
-                return Positioned(
-                  left: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(30),
-                    decoration: const BoxDecoration(
-                      color: Colors.black38,
-                      borderRadius: BorderRadius.all(Radius.circular(16)),
-                    ),
-                    child: NotifycationWidget(
-                      callerUserID: callState.callerUserID,
-                      callerUserName: callState.callerUserName,
-                      callerIconUrl: callState.callerIconUrl,
-                      onDecline: () {
-                        NotificationRing.shared.stopRing();
-                        CallBloc.shared.add(CallInviteDecline());
-                      },
-                      onAccept: () {
-                        NotificationRing.shared.stopRing();
-                        CallBloc.shared.add(CallInviteAccept(callState.roomID, callState.isGroupCall));
-                      },
-                    ),
-                  ),
+                return NotifycationWidget(
+                  callerUserID: callState.callerUserID,
+                  callerUserName: callState.callerUserName,
+                  callerIconUrl: callState.callerIconUrl,
+                  onDecline: () {
+                    NotificationRing.shared.stopRing();
+                    CallBloc.shared.add(CallInviteDecline());
+                  },
+                  onAccept: () {
+                    NotificationRing.shared.stopRing();
+                    CallBloc.shared.add(CallInviteAccept(
+                        callState.roomID, callState.isGroupCall));
+                  },
                 );
               default:
                 return Container();
