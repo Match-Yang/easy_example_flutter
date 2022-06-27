@@ -8,8 +8,6 @@ class ZegoParticipant {
   String userID = '';
   String name = '';
   String streamID = '';
-  int viewID = -1;
-  Widget view = Container();
   bool camera = false;
   bool mic = false;
   ZegoStreamQualityLevel network = ZegoStreamQualityLevel.Excellent;
@@ -123,7 +121,6 @@ class ZegoExpressManager {
           userIDList.add(user.userID);
           if (_participantDic.containsKey(user.userID)) {
             var participant = _participantDic[user.userID];
-            ZegoExpressEngine.instance.destroyPlatformView(participant!.viewID);
 
             _streamDic.remove(_participantDic[user.userID]!.streamID);
             _participantDic.remove(user.userID);
@@ -256,56 +253,6 @@ class ZegoExpressManager {
     }
   }
 
-  /// Return a widget with your own video
-  Widget? getLocalVideoView() {
-    if (_localParticipant.userID.isEmpty) {
-      log("Error: [getLocalVideoView] You need to login room before you call getLocalVideoView");
-      return null;
-    }
-    Widget? previewViewWidget =
-        ZegoExpressEngine.instance.createPlatformView((viewID) {
-      _localParticipant.viewID = viewID;
-
-      // Start preview using platform view
-      // Set the preview canvas
-      ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
-      // Start preview
-      ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
-    });
-    return previewViewWidget;
-  }
-
-  /// Return a widget that will render the video of a specific user
-  ///
-  /// Call this function after joining room
-  Widget? getRemoteVideoView(String userID) {
-    if (_roomID.isEmpty) {
-      log("Error: [getRemoteVideoView] You need to join the room first and then get the videoView");
-      return null;
-    }
-    if (userID.isEmpty) {
-      log("Error: [getRemoteVideoView] userID is empty, please enter a right userID");
-      return null;
-    }
-    if (!_participantDic.containsKey(userID)) {
-      log("Error: [getRemoteVideoView] there is no user with id ($userID) in the room");
-      return null;
-    } else {
-      if (_participantDic[userID]?.viewID != -1) {
-        ZegoExpressEngine.instance
-            .destroyPlatformView(_participantDic[userID]!.viewID);
-      }
-      Widget? playViewWidget =
-          ZegoExpressEngine.instance.createPlatformView((viewID) {
-        var participant = _participantDic[userID];
-        participant!.viewID = viewID;
-
-        _playStream(participant.streamID);
-      });
-      return playViewWidget;
-    }
-  }
-
   /// Turn on your camera if [enable] is true
   void enableCamera(bool enable) {
     if (enable && !_isPlayingStream) {
@@ -345,6 +292,12 @@ class ZegoExpressManager {
     _localParticipant.mic = enable;
   }
 
+  /// Turn on your speaker if [enable] is true
+  void enableSpeaker(bool enable) {
+    ZegoExpressEngine.instance.setAudioRouteToSpeaker(enable);
+    // ZegoExpressEngine.instance.muteSpeaker(!enable);
+  }
+
   /// Switch to the front camera if [isFront] is true
   void switchFrontCamera(bool isFront) {
     ZegoExpressEngine.instance.useFrontCamera(isFront);
@@ -354,11 +307,6 @@ class ZegoExpressManager {
   void leaveRoom() {
     ZegoExpressEngine.instance.stopPublishingStream();
     ZegoExpressEngine.instance.stopPreview();
-    _participantDic.forEach((_, participant) {
-      if (participant.viewID != -1) {
-        ZegoExpressEngine.instance.destroyPlatformView(participant.viewID);
-      }
-    });
     _participantDic.clear();
     _streamDic.clear();
     _roomID = '';
@@ -402,16 +350,7 @@ class ZegoExpressManager {
   void _playStream(String streamID) {
     if (_mediaOptions.contains(ZegoMediaOption.autoPlayVideo) ||
         _mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
-      ZegoParticipant? participant = _streamDic[streamID];
-      if (participant == null) {
-        return;
-      }
-      if (participant.viewID == -1) {
-        log("Error [_playStream] view id is empty!");
-        return;
-      }
-      ZegoCanvas canvas = ZegoCanvas.view(participant.viewID);
-      ZegoExpressEngine.instance.startPlayingStream(streamID, canvas: canvas);
+      ZegoExpressEngine.instance.startPlayingStream(streamID);
       if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
         ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
       }

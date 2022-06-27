@@ -64,11 +64,6 @@ class HomePage extends StatelessWidget {
       log('Error: Microphone permission not granted!!!');
       return false;
     }
-    PermissionStatus cameraStatus = await Permission.camera.request();
-    if (cameraStatus != PermissionStatus.granted) {
-      log('Error: Camera permission not granted!!!');
-      return false;
-    }
     return true;
   }
 
@@ -111,17 +106,18 @@ class HomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          const Text(
-            'ZEGOCLOUD',
-            style: TextStyle(fontSize: 30, color: Colors.blue),
-          ),
+          const Text('ZEGOCLOUD',
+              style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.blue,
+                  decoration: TextDecoration.none)),
           ElevatedButton(
               onPressed: () async {
                 await requestPermission();
                 Navigator.pushReplacementNamed(context, '/call_page',
                     arguments: await getJoinRoomArgs());
               },
-              child: const Text('Join Room')),
+              child: const Text('Join Room'))
         ],
       ),
     );
@@ -139,28 +135,28 @@ class CallPage extends StatefulWidget {
 }
 
 class _CallPageState extends State<CallPage> {
-  Widget _bigView = Container(
-    color: Colors.white,
-  );
-  Widget _smallView = Container(
-    color: Colors.black54,
-  );
   bool _joinedRoom = false;
   bool _micEnable = true;
-  bool _cameraEnable = true;
+  bool _speakerEnable = true;
+  String _remoteUserID = "";
 
   void prepareSDK(int appID) {
     // TODO You need to call createEngine before call any of other methods of the SDK
     ZegoExpressManager.shared.createEngine(appID);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
+          // For one-to-one call we just need to display the other user at the small view
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
-          // For one-to-one call we just need to display the other user at the small view
           setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            _remoteUserID = userID;
           });
+          break;
         }
+      } else {
+        setState(() {
+          _remoteUserID = "";
+        });
       }
     };
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
@@ -194,13 +190,10 @@ class _CallPageState extends State<CallPage> {
         ZegoExpressManager.shared
             .joinRoom(roomID, ZegoUser(userID, userID), token, [
           ZegoMediaOption.publishLocalAudio,
-          ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
-          ZegoMediaOption.autoPlayVideo
         ]);
         // You can get your own view and display it immediately after joining the room
         setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
           _joinedRoom = true;
         });
       }
@@ -210,94 +203,69 @@ class _CallPageState extends State<CallPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Stack(
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: const BoxDecoration(color: Colors.lightBlue),
+        child: Column(
           children: <Widget>[
-            SizedBox.expand(
-              child: _bigView,
+            Text(_remoteUserID,
+                style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 15.0,
+                    decoration: TextDecoration.none)),
+            const Expanded(child: Text('')),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Microphone control button
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.black26),
+                    child:
+                        Icon(_micEnable ? Icons.mic : Icons.mic_off, size: 28),
+                    onPressed: () {
+                      ZegoExpressManager.shared.enableMic(!_micEnable);
+                      setState(() {
+                        _micEnable = !_micEnable;
+                      });
+                    }),
+                // End call button
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.red),
+                    child: const Icon(Icons.call_end, size: 28),
+                    onPressed: () {
+                      ZegoExpressManager.shared.leaveRoom();
+                      setState(() {
+                        _joinedRoom = false;
+                      });
+                      // Back to home page
+                      Navigator.pushReplacementNamed(context, '/home_page');
+                    }),
+                // Camera control button
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(10),
+                        primary: Colors.black26),
+                    child: Icon(
+                        _speakerEnable
+                            ? Icons.speaker_phone
+                            : Icons.headphones,
+                        size: 28),
+                    onPressed: () {
+                      ZegoExpressManager.shared.enableSpeaker(!_speakerEnable);
+                      setState(() {
+                        _speakerEnable = !_speakerEnable;
+                      });
+                    })
+              ],
             ),
-            Positioned(
-                top: 100,
-                right: 16,
-                child: SizedBox(
-                  width: 114,
-                  height: 170,
-                  child: _smallView,
-                )),
-            Positioned(
-                bottom: 100,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Microphone control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _micEnable ? Icons.mic : Icons.mic_off,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableMic(!_micEnable);
-                        setState(() {
-                          _micEnable = !_micEnable;
-                        });
-                      },
-                    ),
-                    // End call button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.red,
-                      ),
-                      child: const Icon(
-                        Icons.call_end,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.leaveRoom();
-                        setState(() {
-                          _bigView = Container(
-                            color: Colors.white,
-                          );
-                          _smallView = Container(
-                            color: Colors.black54,
-                          );
-                          _joinedRoom = false;
-                        });
-                        // Back to home page
-                        Navigator.pushReplacementNamed(context, '/home_page');
-                      },
-                    ),
-                    // Camera control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _cameraEnable
-                            ? Icons.camera_alt
-                            : Icons.camera_alt_outlined,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableCamera(!_cameraEnable);
-                        setState(() {
-                          _cameraEnable = !_cameraEnable;
-                        });
-                      },
-                    ),
-                  ],
-                )),
           ],
         ),
       ), // This trailing comma makes auto-formatting nicer for build methods.
