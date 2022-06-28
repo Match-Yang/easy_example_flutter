@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:math' as math;
 
-import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:zego_express_engine/zego_express_engine.dart';
 import 'package:http/http.dart' as http;
+
+import 'package:easy_example_flutter/audio_call_page.dart';
+import 'package:easy_example_flutter/video_call_page.dart';
+import 'package:easy_example_flutter/zego_express_manager.dart';
 
 // TODO mark is for let you know you need to do something, please check all of it!
 //\/\/\/\/\/\/\/\/\/\/\/\/\/ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
@@ -31,8 +33,9 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/home_page',
       routes: {
-        '/home_page': (context) => HomePage(),
-        '/call_page': (context) => CallPage(),
+        '/home_page': (context) => const HomePage(),
+        '/video_call_page': (context) => const VideoCallPage(),
+        '/audio_call_page': (context) => const AudioCallPage(),
       },
     );
   }
@@ -58,16 +61,19 @@ class HomePage extends StatelessWidget {
   /// Check the permission or ask for the user if not grant
   ///
   /// TODO Copy to your project
-  Future<bool> requestPermission() async {
-    PermissionStatus microphoneStatus = await Permission.microphone.request();
-    if (microphoneStatus != PermissionStatus.granted) {
-      log('Error: Microphone permission not granted!!!');
-      return false;
+  Future<bool> requestPermission(ZegoMediaOptions options) async {
+    if (options.contains(ZegoMediaOption.publishLocalAudio)) {
+      PermissionStatus microphoneStatus = await Permission.microphone.request();
+      if (microphoneStatus != PermissionStatus.granted) {
+        log('Error: Microphone permission not granted!!!');
+      }
     }
-    PermissionStatus cameraStatus = await Permission.camera.request();
-    if (cameraStatus != PermissionStatus.granted) {
-      log('Error: Camera permission not granted!!!');
-      return false;
+
+    if (options.contains(ZegoMediaOption.publishLocalVideo)) {
+      PermissionStatus cameraStatus = await Permission.camera.request();
+      if (cameraStatus != PermissionStatus.granted) {
+        log('Error: Camera permission not granted!!!');
+      }
     }
     return true;
   }
@@ -113,194 +119,38 @@ class HomePage extends StatelessWidget {
         children: [
           const Text(
             'ZEGOCLOUD',
-            style: TextStyle(fontSize: 30, color: Colors.blue),
+            style: TextStyle(
+                fontSize: 30,
+                color: Colors.blue,
+                decoration: TextDecoration.none),
           ),
-          ElevatedButton(
-              onPressed: () async {
-                await requestPermission();
-                Navigator.pushReplacementNamed(context, '/call_page',
-                    arguments: await getJoinRoomArgs());
-              },
-              child: const Text('Join Room')),
+          toolBar(context),
         ],
       ),
     );
   }
-}
 
-/// CallPage use for display the Caller Video view and the Callee Video view
-///
-/// TODO You can copy the completed class to your project
-class CallPage extends StatefulWidget {
-  const CallPage({Key? key}) : super(key: key);
+  Widget toolBar(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+            onPressed: () async {
+              await requestPermission([ZegoMediaOption.publishLocalVideo]);
 
-  @override
-  State<CallPage> createState() => _CallPageState();
-}
+              Navigator.pushReplacementNamed(context, '/video_call_page',
+                  arguments: await getJoinRoomArgs());
+            },
+            child: const Text('Start Video Call')),
+        ElevatedButton(
+            onPressed: () async {
+              await requestPermission([ZegoMediaOption.publishLocalAudio]);
 
-class _CallPageState extends State<CallPage> {
-  Widget _bigView = Container(
-    color: Colors.white,
-  );
-  Widget _smallView = Container(
-    color: Colors.black54,
-  );
-  bool _joinedRoom = false;
-  bool _micEnable = true;
-  bool _cameraEnable = true;
-
-  void prepareSDK(int appID) {
-    // TODO You need to call createEngine before call any of other methods of the SDK
-    ZegoExpressManager.shared.createEngine(appID);
-    ZegoExpressManager.shared.onRoomUserUpdate =
-        (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
-      if (updateType == ZegoUpdateType.Add) {
-        for (final userID in userIDList) {
-          // For one-to-one call we just need to display the other user at the small view
-          setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-          });
-        }
-      }
-    };
-    ZegoExpressManager.shared.onRoomUserDeviceUpdate =
-        (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
-  }
-
-  @override
-  void didChangeDependencies() {
-    // Read data from HomePage
-    RouteSettings settings = ModalRoute.of(context)!.settings;
-    if (settings.arguments != null) {
-      // Read arguments
-      Map<String, String> obj = settings.arguments as Map<String, String>;
-      var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
-      var roomID = obj['roomID'] ?? "";
-      var appID = int.parse(obj['appID'] ?? "0");
-
-      // Prepare SDK
-      prepareSDK(appID);
-
-      // Join room and wait for other...
-      if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        // We are making a Video Call example so we use the options with publish video/audio and auto play video/audio
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
-          ZegoMediaOption.publishLocalAudio,
-          ZegoMediaOption.publishLocalVideo,
-          ZegoMediaOption.autoPlayAudio,
-          ZegoMediaOption.autoPlayVideo
-        ]);
-        // You can get your own view and display it immediately after joining the room
-        setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
-          _joinedRoom = true;
-        });
-      }
-    }
-    super.didChangeDependencies();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Stack(
-          children: <Widget>[
-            SizedBox.expand(
-              child: _bigView,
-            ),
-            Positioned(
-                top: 100,
-                right: 16,
-                child: SizedBox(
-                  width: 114,
-                  height: 170,
-                  child: _smallView,
-                )),
-            Positioned(
-                bottom: 100,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Microphone control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _micEnable ? Icons.mic : Icons.mic_off,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableMic(!_micEnable);
-                        setState(() {
-                          _micEnable = !_micEnable;
-                        });
-                      },
-                    ),
-                    // End call button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.red,
-                      ),
-                      child: const Icon(
-                        Icons.call_end,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.leaveRoom();
-                        setState(() {
-                          _bigView = Container(
-                            color: Colors.white,
-                          );
-                          _smallView = Container(
-                            color: Colors.black54,
-                          );
-                          _joinedRoom = false;
-                        });
-                        // Back to home page
-                        Navigator.pushReplacementNamed(context, '/home_page');
-                      },
-                    ),
-                    // Camera control button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
-                      ),
-                      child: Icon(
-                        _cameraEnable
-                            ? Icons.camera_alt
-                            : Icons.camera_alt_outlined,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        ZegoExpressManager.shared.enableCamera(!_cameraEnable);
-                        setState(() {
-                          _cameraEnable = !_cameraEnable;
-                        });
-                      },
-                    ),
-                  ],
-                )),
-          ],
-        ),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+              Navigator.pushReplacementNamed(context, '/audio_call_page',
+                  arguments: await getJoinRoomArgs());
+            },
+            child: const Text('Start Audio Call'))
+      ],
     );
   }
 }
