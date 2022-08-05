@@ -45,18 +45,14 @@ class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
   // TODO Test data <<<<<<<<<<<<<<
-  // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = 0;
+  // Get your AppID/AppSign from ZEGOCLOUD Console [My Projects] :  https://console.zegocloud.com/project
+  final int appID = ;
+  final String appSign = '';
 
   // TODO This room id for test only
   //  You can talk to other user with the same roomID
   //  So you need to set an unique roomID for every talk or live streaming
   final String roomID = '123456';
-
-  // TODO Heroku server url for example
-  // Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
-  final String tokenServerUrl = ''; // https://xxx.herokuapp.com
-
 
   /// Check the permission or ask for the user if not grant
   ///
@@ -78,35 +74,17 @@ class HomePage extends StatelessWidget {
     return true;
   }
 
-  /// Get the ZEGOCLOUD's API access token
-  ///
-  /// There are some API of ZEGOCLOUD need to pass the token to use.
-  /// We use Heroku service for test.
-  /// You can get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
-  /// Read more about the token: https://docs.zegocloud.com/article/14140
-  Future<String> getToken(String userID) async {
-    final response =
-        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
-    if (response.statusCode == 200) {
-      final jsonObj = jsonDecode(response.body);
-      return jsonObj['token'];
-    } else {
-      return "";
-    }
-  }
-
   /// Get the necessary arguments to join the room for start the talk or live streaming
   ///
   ///  TODO DO NOT use special characters for userID and roomID.
   ///  We recommend only contain letters, numbers, and '_'.
   Future<Map<String, String>> getJoinRoomArgs() async {
     final userID = math.Random().nextInt(10000).toString();
-    final String token = await getToken(userID);
     return {
       'userID': userID,
-      'token': token,
       'roomID': roomID,
       'appID': appID.toString(),
+      'appSign': appSign.toString(),
     };
   }
 

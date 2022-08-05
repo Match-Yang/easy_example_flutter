@@ -87,11 +87,11 @@ class ZegoExpressManager {
   ///
   /// You need to call createEngine before call any of other methods of the SDK
   /// Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/createEngine.html
-  void createEngine(int appID) {
+  void createEngine(int appID, String appSign) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
     ZegoEngineProfile profile = ZegoEngineProfile(appID, ZegoScenario.General,
-        enablePlatformView: true);
+        appSign: appSign, enablePlatformView: true);
 
     ZegoExpressEngine.createEngineWithProfile(profile);
 
@@ -240,15 +240,10 @@ class ZegoExpressManager {
   /// Live Streaming: - audience:[ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio]
   /// Chat Room: - host:[ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio]
   /// Chat Room: - audience:[ZegoMediaOption.autoPlayAudio]
-  Future<void> joinRoom(String roomID, ZegoUser user, String token,
-      ZegoMediaOptions options) async {
+  Future<void> joinRoom(
+      String roomID, ZegoUser user, ZegoMediaOptions options) async {
     _participantDic.clear();
     _streamDic.clear();
-
-    if (token.isEmpty) {
-      log("Error: [joinRoom] token is empty, please enter a right token");
-      return;
-    }
 
     _roomID = roomID;
     _mediaOptions = options;
@@ -259,7 +254,7 @@ class ZegoExpressManager {
     _localParticipant = participant;
 
     // if you need limit participant count, you can change the max member count
-    var roomConfig = ZegoRoomConfig(0, true, token);
+    var roomConfig = ZegoRoomConfig(0, true, '');
     await ZegoExpressEngine.instance
         .loginRoom(roomID, user, config: roomConfig);
     if (_mediaOptions.contains(ZegoMediaOption.publishLocalAudio) ||

@@ -18,9 +18,9 @@ class _AudioCallPageState extends State<AudioCallPage> {
   bool _speakerEnable = true;
   String _remoteUserID = "";
 
-  void prepareSDK(int appID) {
+  void prepareSDK(int appID, String appSign) {
     // TODO You need to call createEngine before call any of other methods of the SDK
-    ZegoExpressManager.shared.createEngine(appID);
+    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       // For one-to-one call we just need to display the other user at the small view
@@ -39,10 +39,6 @@ class _AudioCallPageState extends State<AudioCallPage> {
     };
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
   }
 
   @override
@@ -53,20 +49,18 @@ class _AudioCallPageState extends State<AudioCallPage> {
       // Read arguments
       Map<String, String> obj = settings.arguments as Map<String, String>;
       var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
       var roomID = obj['roomID'] ?? "";
       var appID = int.parse(obj['appID'] ?? "0");
+      var appSign = obj['appSign'] ?? "";
 
       // Prepare SDK
-      prepareSDK(appID);
+      prepareSDK(appID, appSign);
 
       // Join room and wait for other...
       if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-        "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         // We are making a Video Call example so we use the options with publish video/audio and auto play video/audio
         ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
+            .joinRoom(roomID, ZegoUser(userID, userID), [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.autoPlayAudio,
         ]);
