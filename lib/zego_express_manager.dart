@@ -58,14 +58,18 @@ class ZegoExpressManager {
   void Function(
           ZegoUpdateType updateType, List<String> userIDList, String roomID)?
       onRoomUserUpdate;
+
   /// Trigger when device's status of user with [userID] has been update
   void Function(ZegoDeviceUpdateType updateType, String userID, String roomID)?
       onRoomUserDeviceUpdate;
+
   /// Trigger when the access token will expire which mean you should call renewToken to set new token
   void Function(int remainTimeInSecond, String roomID)? onRoomTokenWillExpire;
+
   /// Trigger when room extra info has been updated by you or others
   void Function(List<ZegoRoomExtraInfo> roomExtraInfoList)?
       onRoomExtraInfoUpdate;
+
   /// Trigger when room's state changed
   void Function(ZegoRoomState state)? onRoomStateUpdate;
 
@@ -83,11 +87,11 @@ class ZegoExpressManager {
   ///
   /// You need to call createEngine before call any of other methods of the SDK
   /// Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/createEngine.html
-  void createEngine(int appID) {
+  void createEngine(int appID, String appSign) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
     ZegoEngineProfile profile = ZegoEngineProfile(appID, ZegoScenario.General,
-        enablePlatformView: true);
+        appSign: appSign, enablePlatformView: true);
 
     ZegoExpressEngine.createEngineWithProfile(profile);
 
@@ -198,13 +202,6 @@ class ZegoExpressManager {
         participant!.network = upstreamQuality;
       }
     };
-    // Read more about it:https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomTokenWillExpire.html
-    ZegoExpressEngine.onRoomTokenWillExpire =
-        (String roomID, int remainTimeInSecond) {
-      if (onRoomTokenWillExpire != null) {
-        onRoomTokenWillExpire!(remainTimeInSecond, roomID);
-      }
-    };
     // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomExtraInfoUpdate.html
     ZegoExpressEngine.onRoomExtraInfoUpdate =
         (String roomID, List<ZegoRoomExtraInfo> roomExtraInfoList) {
@@ -224,14 +221,11 @@ class ZegoExpressManager {
   /// Live Streaming: - audience:[ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio]
   /// Chat Room: - host:[ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio]
   /// Chat Room: - audience:[ZegoMediaOption.autoPlayAudio]
-  Future<void> joinRoom(String roomID, ZegoUser user, String token,
-      ZegoMediaOptions options) async {
+  Future<void> joinRoom(
+      String roomID, ZegoUser user, ZegoMediaOptions options) async {
     _participantDic.clear();
     _streamDic.clear();
-    if (token.isEmpty) {
-      log("Error: [joinRoom] token is empty, please enter a right token");
-      return;
-    }
+
     _roomID = roomID;
     _mediaOptions = options;
     var participant = ZegoParticipant(user.userID, user.userName);
@@ -241,7 +235,7 @@ class ZegoExpressManager {
     _localParticipant = participant;
 
     // if you need limit participant count, you can change the max member count
-    var roomConfig = ZegoRoomConfig(0, true, token);
+    var roomConfig = ZegoRoomConfig(0, true, '');
     await ZegoExpressEngine.instance
         .loginRoom(roomID, user, config: roomConfig);
     if (_mediaOptions.contains(ZegoMediaOption.publishLocalAudio) ||
