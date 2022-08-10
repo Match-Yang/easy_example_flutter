@@ -45,10 +45,7 @@ class HomePage extends StatefulWidget {
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
   final int appID = ;
-
-  // Heroku server url for example
-  // Get the server from: https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs
-  final String tokenServerUrl = ; // https://xxx.herokuapp.com
+  final String appSign = '';
 
   // TODO Test data >>>>>>>>>>>>>>
   @override
@@ -75,36 +72,17 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-  /// Get the ZEGOCLOUD's API access token
-  ///
-  /// There are some API of ZEGOCLOUD need to pass the token to use.
-  /// We use Heroku service for test.
-  /// You can get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project  for both User1 and User2.
-  /// Read more about the token: https://docs.zegocloud.com/article/14140
-  Future<String> getToken(String userID) async {
-    String tokenUrl = '${widget.tokenServerUrl}/access_token?uid=$userID';
-    tokenUrl = tokenUrl.replaceAll('herokuapp.com//', 'herokuapp.com/');
-    final response = await http.get(Uri.parse(tokenUrl));
-    if (response.statusCode == 200) {
-      final jsonObj = jsonDecode(response.body);
-      return jsonObj['token'];
-    } else {
-      return "";
-    }
-  }
-
   /// Get the necessary arguments to join the room for start the talk or live streaming
   ///
   ///  TODO DO NOT use special characters for userID and roomID.
   ///  We recommend only contain letters, numbers, and '_'.
   Future<Map<String, String>> getJoinRoomArgs(String role) async {
     final userID = math.Random().nextInt(10000).toString();
-    final String token = await getToken(userID);
     return {
       'userID': userID,
-      'token': token,
       'roomID': roomID,
       'appID': widget.appID.toString(),
+      'appSign': widget.appSign.toString(),
       'role': role,
     };
   }
@@ -179,8 +157,8 @@ class _LivePageState extends State<LivePage> {
   String _coHostID = "";
   String _userID = "";
 
-  void prepareSDK(int appID) {
-    ZegoExpressManager.shared.createEngine(appID);
+  void prepareSDK(int appID, String appSign) {
+    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
@@ -206,10 +184,6 @@ class _LivePageState extends State<LivePage> {
     };
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
     ZegoExpressManager.shared.onRoomExtraInfoUpdate =
         (List<ZegoRoomExtraInfo> infoList) {
       for (final info in infoList) {
@@ -260,9 +234,9 @@ class _LivePageState extends State<LivePage> {
         // Read arguments
         Map<String, String> obj = settings.arguments as Map<String, String>;
         var userID = obj['userID'] ?? "";
-        var token = obj['token'] ?? "";
         var roomID = obj['roomID'] ?? "";
         var appID = int.parse(obj['appID'] ?? "0");
+        var appSign = obj['appSign'] ?? "";
         var role = obj['role'] ?? "host";
         setState(() {
           _userID = userID;
@@ -270,10 +244,8 @@ class _LivePageState extends State<LivePage> {
         });
 
         // Prepare SDK
-        prepareSDK(appID);
+        prepareSDK(appID, appSign);
 
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
         const ZegoMediaOptions optionsForHost = [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
@@ -286,7 +258,7 @@ class _LivePageState extends State<LivePage> {
         ];
         var options = _isHost ? optionsForHost : optionsForAudience;
         ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, options);
+            .joinRoom(roomID, ZegoUser(userID, userID), options);
       }
     }
     super.didChangeDependencies();
