@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'dart:math' as math;
 
@@ -6,13 +5,11 @@ import 'package:easy_example_flutter/zego_express_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
-import 'package:http/http.dart' as http;
 
 // TODO mark is for let you know you need to do something, please check all of it!
 //\/\/\/\/\/\/\/\/\/\/\/\/\/ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 // For how to use ZEGOCLOUD's API: https://docs.zegocloud.com/article/5560
 //\/\/\/\/\/\/\/\/\/\/\/\/\ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-
 
 void main() {
   runApp(const MyApp());
@@ -32,8 +29,8 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/home_page',
       routes: {
-        '/home_page': (context) => HomePage(),
-        '/live_page': (context) => LivePage(),
+        '/home_page': (context) => const HomePage(),
+        '/live_page': (context) => const LivePage(),
       },
     );
   }
@@ -44,8 +41,9 @@ class HomePage extends StatefulWidget {
 
   // TODO Test data <<<<<<<<<<<<<<
   // Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
-  final int appID = ;
-  final String appSign = '';
+  final int appID = 355964969;
+  final String appSign =
+      'd5e65d6c62f272eafdb8a69ed21db1e151365d6fb4a0ab880d11ad2a5f768e15';
 
   // TODO Test data >>>>>>>>>>>>>>
   @override
@@ -100,7 +98,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(fontSize: 30, color: Colors.blue),
             ),
             TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'Room ID',
               ),
@@ -150,7 +148,7 @@ class _LivePageState extends State<LivePage> {
   );
   bool _joinedRoom = false;
   bool _micEnable = true;
-  bool _cameraEnable = true;
+  bool _cameraUseFront = true;
   bool _isHost = true;
   bool _isCoHost = false;
   String _hostID = "";
@@ -383,16 +381,16 @@ class _LivePageState extends State<LivePage> {
                                   primary: Colors.black26,
                                 ),
                                 child: Icon(
-                                  _cameraEnable
+                                  _cameraUseFront
                                       ? Icons.camera_alt
                                       : Icons.camera_alt_outlined,
                                   size: 28,
                                 ),
                                 onPressed: () {
                                   ZegoExpressManager.shared
-                                      .enableCamera(!_cameraEnable);
+                                      .switchFrontCamera(!_cameraUseFront);
                                   setState(() {
-                                    _cameraEnable = !_cameraEnable;
+                                    _cameraUseFront = !_cameraUseFront;
                                   });
                                 },
                               ),
