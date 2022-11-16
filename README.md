@@ -1,5 +1,6 @@
 # ZEGOCLOUD easy example
-  <p align="center">
+
+<p align="center">
     <a href="https://github.com/ZEGOCLOUD/easy_example_flutter/releases"><img src="https://img.shields.io/github/downloads/ZEGOCLOUD/easy_example_flutter/total" alt="Platform"/></a>
     <a href="https://discord.gg/EtNRATttyp">
         <img src="https://img.shields.io/discord/980014613179555870?color=5865F2&logo=discord&logoColor=white" alt="ZEGOCLOUD"/>
@@ -11,9 +12,6 @@
     </a>
     </p>
 </p>
-
-## WARNING🔔🔔🔔: Currently there are compatibility issues with Flutter3.0, please do not upgrade to Flutter3.0 !!!
-
 
 ZEGOCLOUD's easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
 
@@ -49,6 +47,7 @@ $ flutter doctor
 ```
 
 ![image](docs/images/flutter_doctor.png)
+
 * If the Android development environment is ready, the **Android toolchain** item shows a ready state.
 * If the iOS development environment is ready, the **Xcode**  item shows a ready state.
 
@@ -59,11 +58,11 @@ $ flutter doctor
 3. If the **Running Devices** box in the upper area changes to the device name you are using, which means you are ready to run the sample code.
 4. Get your AppID from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project
 5. Deploy a Heroku service for generate ZEGOCLOUD access token by just click the button below
-> [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs)
-![image](docs/images/setup_token.jpg)
+
 6. Run the sample code on your device to experience the easy_example_flutter.
 
 ## Integrate the SDK into your project
+
 [![Integrate](docs/images/integration_video.jpg)](https://www.youtube.com/watch?v=AzdivRas-uc)
 
 ### Add zego_express_engine into your project
@@ -71,21 +70,26 @@ $ flutter doctor
 `$ flutter pub add zego_express_engine`
 
 `$ flutter pub get`
+
 ### Turn off some classes's confusion
 
 To prevent the ZEGO SDK public class names from being obfuscated, please complete the following steps:
 
 1. Create `proguard-rules.pro` file under [your_project > android > app] with content as show below:
+
 ```
 -keep class **.zego.** { *; }
 -keep class **.**.zego_zim.** { *; }
 ```
+
 ![image](docs/images/proguard_rules_file.jpg)
 
 2. Add config code to `android/app/build.gradle` for release build:
+
 ```
 proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 ```
+
 ![image](docs/images/proguard_rules_config.jpg)
 
 ### Grant permission
@@ -96,6 +100,7 @@ You need to grant the network access, camera, and microphone permission to make 
 
 Open [your_project > android > app > src > main > AndroidManifest.xml] file and add the lines below out side the "application" tag:
 ![image](docs/images/android_add_permission.gif)
+
 ```xml
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -112,6 +117,7 @@ Open [your_project > android > app > src > main > AndroidManifest.xml] file and 
 
 Open [your_project > ios > Runner > Info.plist] and add the lines below inside the "dict" tag:
 ![image](docs/images/ios_add_permission.gif)
+
 ```xml
 ...
 <dict>
@@ -188,6 +194,7 @@ If your project needs to use the video communication functionality, you need to 
 **getLocalVideoView**
 
 Call this method after join room
+
 ```js
 ...
 
@@ -224,6 +231,7 @@ void initState() {
 ```
 
 #### Leave room
+
 When you want to leave the room, you can call the leaveroom interface.
 
 ```js
