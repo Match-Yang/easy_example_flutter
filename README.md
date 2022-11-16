@@ -12,8 +12,6 @@
     </p>
 </p>
 
-## WARNING🔔🔔🔔: Currently there are compatibility issues with Flutter3.0, please do not upgrade to Flutter3.0 !!!
-
 ZEGOCLOUD's easy example is a simple wrapper around our RTC product. You can refer to the sample code for quick integration.
 
 ## Getting started
