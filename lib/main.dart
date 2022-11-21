@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
 import 'package:easy_example_flutter/group_call_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:http/http.dart' as http;
@@ -67,22 +70,32 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+enum ReadyState {
+  notReady,
+  ready,
+  failed,
+}
+
 class _HomePageState extends State<HomePage> {
-  static bool expressReady = false;
+  static ReadyState expressReady = ReadyState.notReady;
   static String expressTips = 'starting...';
   static String expressToken = '';
 
-  static bool firebaseReady = false;
+  static ReadyState firebaseReady = ReadyState.notReady;
   static String firebaseTips = 'starting...';
 
-  bool get ready => expressReady && firebaseReady;
+  bool get ready =>
+      ReadyState.ready == expressReady && ReadyState.ready == firebaseReady;
 
   @override
   void initState() {
     super.initState();
+
     requestPermission();
-    if (!expressReady) requestExpressToken();
-    if (!firebaseReady) requestFCMToken();
+    requestNotificationPermission();
+
+    if (ReadyState.ready != expressReady) requestExpressToken();
+    if (ReadyState.ready != firebaseReady) requestFCMToken();
   }
 
   @override
@@ -118,8 +131,16 @@ class _HomePageState extends State<HomePage> {
                 ),
                 Column(
                   children: [
-                    prepareTips(firebaseReady, firebaseTips),
-                    prepareTips(expressReady, expressTips),
+                    prepareTips(
+                      firebaseReady,
+                      firebaseTips,
+                      requestFCMToken,
+                    ),
+                    prepareTips(
+                      expressReady,
+                      expressTips,
+                      requestExpressToken,
+                    ),
                     ListTile(
                       leading: const Icon(Icons.person),
                       title: Text(
@@ -198,29 +219,34 @@ class _HomePageState extends State<HomePage> {
     var fcmToken = await FirebaseMessaging.instance.getToken();
 
     setState(() => firebaseTips = 'Storing fcm token...');
-    var response = await http.post(
-      Uri.parse('$tokenServerUrl/store_fcm_token'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'deviceType': defaultTargetPlatform.toString().split(".").last,
-        'token': fcmToken,
-        'userID': userID,
-      }),
-    );
-
-    setState(() => firebaseTips = 'requesting permission...');
-    NotificationManager.shared.requestNotificationPermission();
-
-    setState(() {
-      if ((response.statusCode == 200) &&
-          (json.decode(response.body)['ret'] == 0)) {
-        firebaseReady = true;
-        firebaseTips = 'Store fcm token success';
-      } else {
-        firebaseReady = false;
+    late http.Response response;
+    try {
+      response = await http.post(
+        Uri.parse('$tokenServerUrl/store_fcm_token'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'deviceType': defaultTargetPlatform.toString().split(".").last,
+          'token': fcmToken,
+          'userID': userID,
+        }),
+      );
+      setState(() {
+        if ((response.statusCode == 200) &&
+            (json.decode(response.body)['ret'] == 0)) {
+          firebaseReady = ReadyState.ready;
+          firebaseTips = 'Store fcm token success';
+        } else {
+          firebaseReady = ReadyState.failed;
+          firebaseTips = 'Store fcm token failed';
+        }
+      });
+    } on Exception catch (error) {
+      setState(() {
+        firebaseReady = ReadyState.failed;
         firebaseTips = 'Store fcm token failed';
-      }
-    });
+      });
+      log("[ERROR], get fcm token exception, ${error.toString()}");
+    }
   }
 
   void requestExpressToken({bool needReNewToken = false}) {
@@ -228,13 +254,18 @@ class _HomePageState extends State<HomePage> {
 
     getExpressToken(userID).then((token) {
       setState(() {
-        expressReady = true;
+        expressReady = token.isEmpty ? ReadyState.failed : ReadyState.ready;
         expressTips = token.isEmpty
-            ? "Get express token faild, please check your tokenServerUrl"
+            ? "Get express token failed, please check your tokenServerUrl"
             : "Get express token success";
         expressToken = token;
       });
     });
+  }
+
+  Future<void> requestNotificationPermission() async {
+    // setState(() => firebaseTips = 'requesting permission...');
+    await NotificationManager.shared.requestNotificationPermission();
   }
 
   void callInvite(String targetID) {
@@ -356,8 +387,11 @@ class _CallPageState extends State<CallPage> {
 
       // Join room and wait for other...
       if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
+        if (token.isNotEmpty) {
+          log("[ERROR} Token is empty! Get your temporary token from ZEGOCLOUD "
+              "Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
+        }
+
         ZegoExpressManager.shared
             .joinRoom(roomID, ZegoUser(userID, userID), token, [
           ZegoMediaOption.publishLocalAudio,
@@ -472,39 +506,77 @@ class _CallPageState extends State<CallPage> {
 }
 
 Future<bool> requestPermission() async {
-  PermissionStatus microphoneStatus = await Permission.microphone.request();
-  if (microphoneStatus != PermissionStatus.granted) {
-    log('Error: Microphone permission not granted!!!');
-    return false;
+  log("requestPermission...");
+  try {
+    PermissionStatus microphoneStatus = await Permission.microphone.request();
+    if (microphoneStatus != PermissionStatus.granted) {
+      log('Error: Microphone permission not granted!!!');
+      return false;
+    }
+  } on Exception catch (error) {
+    log("[ERROR], request microphone permission exception, ${error.toString()}");
   }
-  PermissionStatus cameraStatus = await Permission.camera.request();
-  if (cameraStatus != PermissionStatus.granted) {
-    log('Error: Camera permission not granted!!!');
-    return false;
+
+  try {
+    PermissionStatus cameraStatus = await Permission.camera.request();
+    if (cameraStatus != PermissionStatus.granted) {
+      log('Error: Camera permission not granted!!!');
+      return false;
+    }
+  } on Exception catch (error) {
+    log("[ERROR], request camera permission exception, ${error.toString()}");
   }
+
   return true;
 }
 
 // Get your token from tokenServer
 Future<String> getExpressToken(String userID) async {
-  final response =
-      await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
-  if (response.statusCode == 200) {
-    final jsonObj = json.decode(response.body);
-    return jsonObj['token'];
-  } else {
-    return "";
+  late http.Response response;
+  try {
+    response =
+        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
+
+    if (response.statusCode == 200) {
+      final jsonObj = json.decode(response.body);
+      return jsonObj['token'] ?? "";
+    }
+  } on Exception catch (error) {
+    log("[ERROR], get express token exception, ${error.toString()}");
   }
+
+  return "";
 }
 
-ListTile prepareTips(bool ready, String tips) {
-  return ListTile(
-    leading: ready
-        ? const Icon(Icons.check_circle, color: Colors.green)
-        : const Icon(Icons.report_problem, color: Colors.red),
+Widget prepareTips(ReadyState readyState, String tips, VoidCallback retry) {
+  late Widget icon;
+  switch (readyState) {
+    case ReadyState.notReady:
+      icon = const CircularProgressIndicator(strokeWidth: 2.0);
+      break;
+    case ReadyState.ready:
+      icon = const Icon(Icons.check_circle, color: Colors.green);
+      break;
+    case ReadyState.failed:
+      icon = const Icon(Icons.report_problem, color: Colors.red);
+      break;
+  }
+
+  var listTitle = ListTile(
+    leading: icon,
     title: Text(
       tips,
       style: const TextStyle(fontSize: 20, color: Colors.blue),
     ),
   );
+
+  return readyState == ReadyState.failed
+      ? GestureDetector(
+          onTap: retry,
+          child: Container(
+            decoration: BoxDecoration(border: Border.all(color: Colors.red)),
+            child: listTitle,
+          ),
+        )
+      : listTitle;
 }

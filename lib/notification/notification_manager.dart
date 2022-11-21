@@ -14,6 +14,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/services.dart';
 
 // Project imports:
 import '../bloc/call_bloc.dart';
@@ -29,8 +30,11 @@ const backgroundIsolatePortName = 'notification_manager_isolate_port';
 
 class NotificationManager {
   static var shared = NotificationManager();
+  StreamSubscription<dynamic>? actionStreamSubscription;
 
   Future<void> init() async {
+    log("notification manager init");
+
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(onFirebaseBackgroundMessage);
@@ -73,9 +77,13 @@ class NotificationManager {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
     String? token = await messaging.getToken();
     print('FCM token: $token');
+
+    listenAwesomeNotification();
   }
 
   void uninit() async {
+    actionStreamSubscription?.cancel();
+
     NotificationRing.shared.uninit();
   }
 
@@ -84,7 +92,6 @@ class NotificationManager {
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       requestAwesomeNotificationsPermission();
-      listenAwesomeNotification();
     }
   }
 
@@ -95,16 +102,30 @@ class NotificationManager {
     String? token = await messaging.getToken();
     log("FCM Token $token");
 
-    // 2. On iOS, this helps to take the user permissions
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
+    late NotificationSettings settings;
+    try {
+      // 2. On iOS, this helps to take the user permissions
+      settings = await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      // 3. Grant permission, for iOS only, Android ignore by default
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        log('User granted permission');
+      } else {
+        assert(false);
+        log('User declined or has not accepted permission');
+      }
+    } on Exception catch (error) {
+      log("[ERROR], request firebase message permission exception, ${error.toString()}");
+    }
+
     // For handling the received notifications
     FirebaseMessaging.onMessage.listen(onFirebaseForegroundMessage);
     if (defaultTargetPlatform == TargetPlatform.iOS) {
@@ -117,17 +138,9 @@ class NotificationManager {
         }
       });
     }
-
-    // 3. Grant permission, for iOS only, Android ignore by default
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      log('User granted permission');
-    } else {
-      assert(false);
-      log('User declined or has not accepted permission');
-    }
   }
 
-  void requestAwesomeNotificationsPermission() async {
+  Future<void> requestAwesomeNotificationsPermission() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
       List<NotificationPermission> requestedPermissions = [
         NotificationPermission.Sound,
@@ -138,48 +151,53 @@ class NotificationManager {
         NotificationPermission.Vibration,
         NotificationPermission.Light,
       ];
-      await AwesomeNotifications().requestPermissionToSendNotifications(
-          channelKey: firebaseChannelKey, permissions: requestedPermissions);
+
+      try {
+        await AwesomeNotifications().requestPermissionToSendNotifications(
+            channelKey: firebaseChannelKey, permissions: requestedPermissions);
+      } on Exception catch (error) {
+        log("[ERROR], request notification permission exception, ${error.toString()}");
+      }
     }
   }
 
   void listenAwesomeNotification() {
     if (defaultTargetPlatform == TargetPlatform.android) {
       //  BEFORE!! MaterialApp widget, starts to listen the notification actions
-      AwesomeNotifications()
-          .actionStream
-          .listen((ReceivedNotification notifycation) {
-        AndroidForegroundService.stopForeground();
-        IsolateNameServer.lookupPortByName(backgroundIsolatePortName)
-            ?.send("stop_ring");
-
-        if (notifycation.channelKey != firebaseChannelKey) {
-          log('unknown channel key');
-          return;
-        }
-        if (notifycation is ReceivedAction) {
-          var action = notifycation;
-          switch (action.buttonKeyPressed) {
-            case 'decline':
-              CallBloc.shared.add(CallInviteDecline());
-              return;
-            case 'accept':
-              CallBloc.shared.add(CallInviteAccept(
-                  notifycation.payload!['roomID']!,
-                  notifycation.payload!.containsKey("targetUserIDList")));
-              return;
-            default:
-              break;
-          }
-        }
-        CallBloc.shared.add(CallReceiveInvited(
-            notifycation.payload!['callerUserID']!,
-            notifycation.payload!['callerUserName']!,
-            notifycation.payload!['callerIconUrl']!,
-            notifycation.payload!['roomID']!,
-            notifycation.payload!.containsKey("targetUserIDList")));
-      });
+      actionStreamSubscription =
+          AwesomeNotifications().actionStream.listen(onActionStream);
     }
+  }
+
+  void onActionStream(ReceivedNotification notifycation) {
+    AndroidForegroundService.stopForeground();
+    IsolateNameServer.lookupPortByName(backgroundIsolatePortName)
+        ?.send("stop_ring");
+
+    if (notifycation.channelKey != firebaseChannelKey) {
+      log('unknown channel key');
+      return;
+    }
+    if (notifycation is ReceivedAction) {
+      var action = notifycation;
+      switch (action.buttonKeyPressed) {
+        case 'decline':
+          CallBloc.shared.add(CallInviteDecline());
+          return;
+        case 'accept':
+          CallBloc.shared.add(CallInviteAccept(notifycation.payload!['roomID']!,
+              notifycation.payload!.containsKey("targetUserIDList")));
+          return;
+        default:
+          break;
+      }
+    }
+    CallBloc.shared.add(CallReceiveInvited(
+        notifycation.payload!['callerUserID']!,
+        notifycation.payload!['callerUserName']!,
+        notifycation.payload!['callerIconUrl']!,
+        notifycation.payload!['roomID']!,
+        notifycation.payload!.containsKey("targetUserIDList")));
   }
 
   Future<void> onFirebaseOpenedAppMessage(RemoteMessage message) async {
