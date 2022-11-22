@@ -308,6 +308,7 @@ class NotificationManager {
 }
 
 // Declared as global, outside of any class
+@pragma('vm:entry-point')
 Future<void> onFirebaseBackgroundMessage(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
