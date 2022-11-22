@@ -14,7 +14,6 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/services.dart';
 
 // Project imports:
 import '../bloc/call_bloc.dart';
@@ -229,6 +228,7 @@ class NotificationManager {
     log('remote message receive: ${message.data}');
     NotificationRing.shared.startRing();
     if (defaultTargetPlatform == TargetPlatform.android) {
+      listenAwesomeNotification();
       final ReceivePort backgroundPort = ReceivePort();
       IsolateNameServer.registerPortWithName(
           backgroundPort.sendPort, backgroundIsolatePortName);

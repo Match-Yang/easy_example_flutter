@@ -1,12 +1,9 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
 import 'package:easy_example_flutter/group_call_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:http/http.dart' as http;
@@ -19,12 +16,13 @@ import 'notification/notification_manager.dart';
 import 'notification/notification_ring.dart';
 import 'zego_express_manager.dart';
 
-// step1. Get your AppID from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
+// step1. Get your AppID and AppSign from ZEGOCLOUD Console [My Projects] : https://console.zegocloud.com/project
 int appID = ;
+String appSign = ;
 
-// step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+// step2. Get the server from: https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs
 // Heroku server url for example 'https://xxx.herokuapp.com'
-String tokenServerUrl = ;
+String tokenServerUrl = "";
 
 // test data
 String userID = math.Random().nextInt(10000).toString();
@@ -36,7 +34,7 @@ Future<void> main() async {
   // need init Notification
   await NotificationManager.shared.init();
 
-  ZegoExpressManager.shared.createEngine(appID);
+  ZegoExpressManager.shared.createEngine(appID, appSign);
 
   runApp(const MyApp());
 }
@@ -77,15 +75,10 @@ enum ReadyState {
 }
 
 class _HomePageState extends State<HomePage> {
-  static ReadyState expressReady = ReadyState.notReady;
-  static String expressTips = 'starting...';
-  static String expressToken = '';
-
   static ReadyState firebaseReady = ReadyState.notReady;
   static String firebaseTips = 'starting...';
 
-  bool get ready =>
-      ReadyState.ready == expressReady && ReadyState.ready == firebaseReady;
+  bool get ready => ReadyState.ready == firebaseReady;
 
   @override
   void initState() {
@@ -94,7 +87,6 @@ class _HomePageState extends State<HomePage> {
     requestPermission();
     requestNotificationPermission();
 
-    if (ReadyState.ready != expressReady) requestExpressToken();
     if (ReadyState.ready != firebaseReady) requestFCMToken();
   }
 
@@ -106,7 +98,6 @@ class _HomePageState extends State<HomePage> {
           var callState = state;
           var roomArgs = {
             'userID': userID,
-            'token': expressToken,
             'roomID': callState.roomID,
             'appID': appID.toString(),
           };
@@ -135,11 +126,6 @@ class _HomePageState extends State<HomePage> {
                       firebaseReady,
                       firebaseTips,
                       requestFCMToken,
-                    ),
-                    prepareTips(
-                      expressReady,
-                      expressTips,
-                      requestExpressToken,
                     ),
                     ListTile(
                       leading: const Icon(Icons.person),
@@ -249,20 +235,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void requestExpressToken({bool needReNewToken = false}) {
-    setState(() => expressTips = 'getting express token...');
-
-    getExpressToken(userID).then((token) {
-      setState(() {
-        expressReady = token.isEmpty ? ReadyState.failed : ReadyState.ready;
-        expressTips = token.isEmpty
-            ? "Get express token failed, please check your tokenServerUrl"
-            : "Get express token success";
-        expressToken = token;
-      });
-    });
-  }
-
   Future<void> requestNotificationPermission() async {
     // setState(() => firebaseTips = 'requesting permission...');
     await NotificationManager.shared.requestNotificationPermission();
@@ -289,7 +261,6 @@ class _HomePageState extends State<HomePage> {
 
         var roomArgs = {
           'userID': userID,
-          'token': expressToken,
           'roomID': userID,
           'appID': appID.toString(),
         };
@@ -321,7 +292,6 @@ class _HomePageState extends State<HomePage> {
 
         var roomArgs = {
           'userID': userID,
-          'token': expressToken,
           'roomID': userID,
           'appID': appID.toString(),
         };
@@ -351,8 +321,8 @@ class _CallPageState extends State<CallPage> {
   bool _micEnable = true;
   bool _cameraEnable = true;
 
-  void prepareSDK(int appID) {
-    ZegoExpressManager.shared.createEngine(appID);
+  void prepareSDK(int appID, String appSign) {
+    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
@@ -378,22 +348,16 @@ class _CallPageState extends State<CallPage> {
       // Read arguments
       Map<String, String> obj = settings.arguments as Map<String, String>;
       var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
       var roomID = obj['roomID'] ?? "";
       var appID = int.parse(obj['appID'] ?? "0");
+      var appSign = obj['appSign'] ?? "";
 
       // Prepare SDK
-      prepareSDK(appID);
+      prepareSDK(appID, appSign);
 
       // Join room and wait for other...
       if (!_joinedRoom) {
-        if (token.isNotEmpty) {
-          log("[ERROR} Token is empty! Get your temporary token from ZEGOCLOUD "
-              "Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        }
-
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
+        ZegoExpressManager.shared.joinRoom(roomID, ZegoUser(userID, userID), [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
@@ -436,8 +400,8 @@ class _CallPageState extends State<CallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.black26,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
                       ),
                       child: Icon(
                         _micEnable ? Icons.mic : Icons.mic_off,
@@ -454,8 +418,8 @@ class _CallPageState extends State<CallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.red,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.red,
                       ),
                       child: const Icon(
                         Icons.call_end,
@@ -480,8 +444,8 @@ class _CallPageState extends State<CallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.black26,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
                       ),
                       child: Icon(
                         _cameraEnable
@@ -528,24 +492,6 @@ Future<bool> requestPermission() async {
   }
 
   return true;
-}
-
-// Get your token from tokenServer
-Future<String> getExpressToken(String userID) async {
-  late http.Response response;
-  try {
-    response =
-        await http.get(Uri.parse('$tokenServerUrl/access_token?uid=$userID'));
-
-    if (response.statusCode == 200) {
-      final jsonObj = json.decode(response.body);
-      return jsonObj['token'] ?? "";
-    }
-  } on Exception catch (error) {
-    log("[ERROR], get express token exception, ${error.toString()}");
-  }
-
-  return "";
 }
 
 Widget prepareTips(ReadyState readyState, String tips, VoidCallback retry) {

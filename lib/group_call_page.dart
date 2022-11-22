@@ -16,8 +16,8 @@ class _GroupCallPageState extends State<GroupCallPage> {
   bool _cameraEnable = true;
   List<String> _userIDList = [];
 
-  void prepareSDK(int appID) {
-    ZegoExpressManager.shared.createEngine(appID);
+  void prepareSDK(int appID, String appSign) {
+    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
@@ -40,10 +40,6 @@ class _GroupCallPageState extends State<GroupCallPage> {
     };
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
   }
 
   @override
@@ -53,19 +49,16 @@ class _GroupCallPageState extends State<GroupCallPage> {
       // Read arguments
       Map<String, String> obj = settings.arguments as Map<String, String>;
       var userID = obj['userID'] ?? "";
-      var token = obj['token'] ?? "";
       var roomID = obj['roomID'] ?? "";
       var appID = int.parse(obj['appID'] ?? "0");
+      var appSign = obj['appSign'] ?? "";
 
       // Prepare SDK
-      prepareSDK(appID);
+      prepareSDK(appID, appSign);
 
       // Join room and wait for other...
       if (!_joinedRoom) {
-        assert(token.isNotEmpty,
-            "Token is empty! Get your temporary token from ZEGOCLOUD Console [My Projects -> project's Edit -> Basic Configurations] : https://console.zegocloud.com/project");
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), token, [
+        ZegoExpressManager.shared.joinRoom(roomID, ZegoUser(userID, userID), [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
@@ -121,8 +114,8 @@ class _GroupCallPageState extends State<GroupCallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.black26,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
                       ),
                       child: Icon(
                         _micEnable ? Icons.mic : Icons.mic_off,
@@ -139,8 +132,8 @@ class _GroupCallPageState extends State<GroupCallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.red,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.red,
                       ),
                       child: const Icon(
                         Icons.call_end,
@@ -159,8 +152,8 @@ class _GroupCallPageState extends State<GroupCallPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
+                        backgroundColor: Colors.black26,
                         padding: const EdgeInsets.all(10),
-                        primary: Colors.black26,
                       ),
                       child: Icon(
                         _cameraEnable
