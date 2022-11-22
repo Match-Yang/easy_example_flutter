@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:easy_example_flutter/group_call_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:http/http.dart' as http;
@@ -31,6 +32,7 @@ String targetID = '';
 Future<void> main() async {
   // need ensureInitialized
   WidgetsFlutterBinding.ensureInitialized();
+
   // need init Notification
   await NotificationManager.shared.init();
 
@@ -74,7 +76,7 @@ enum ReadyState {
   failed,
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static ReadyState firebaseReady = ReadyState.notReady;
   static String firebaseTips = 'starting...';
 
@@ -84,10 +86,36 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
+    SchedulerBinding.instance?.addPostFrameCallback((_) {
+      CallBloc.shared.flushBackgroundCache();
+    });
+
     requestPermission();
     requestNotificationPermission();
 
     if (ReadyState.ready != firebaseReady) requestFCMToken();
+  }
+
+  @override
+  void dispose() async {
+    super.dispose();
+    WidgetsBinding.instance?.removeObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        CallBloc.shared.flushBackgroundCache();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   @override
@@ -188,7 +216,10 @@ class _HomePageState extends State<HomePage> {
                   onAccept: () {
                     NotificationRing.shared.stopRing();
                     CallBloc.shared.add(CallInviteAccept(
-                        callState.roomID, callState.isGroupCall));
+                      callState.roomID,
+                      callState.isGroupCall,
+                      false,
+                    ));
                   },
                 );
               default:
@@ -223,13 +254,14 @@ class _HomePageState extends State<HomePage> {
           firebaseTips = 'Store fcm token success';
         } else {
           firebaseReady = ReadyState.failed;
-          firebaseTips = 'Store fcm token failed';
+          firebaseTips =
+              'Store fcm token failed, ${json.decode(response.body)['message'] ?? ""}';
         }
       });
     } on Exception catch (error) {
       setState(() {
         firebaseReady = ReadyState.failed;
-        firebaseTips = 'Store fcm token failed';
+        firebaseTips = 'Store fcm token failed, ${error.toString()}';
       });
       log("[ERROR], get fcm token exception, ${error.toString()}");
     }

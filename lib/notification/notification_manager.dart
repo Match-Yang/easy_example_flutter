@@ -146,14 +146,25 @@ class NotificationManager {
         NotificationPermission.FullScreenIntent,
         NotificationPermission.Alert,
         NotificationPermission.Sound,
-        NotificationPermission.Badge,
         NotificationPermission.Vibration,
         NotificationPermission.Light,
       ];
 
       try {
-        await AwesomeNotifications().requestPermissionToSendNotifications(
-            channelKey: firebaseChannelKey, permissions: requestedPermissions);
+        await AwesomeNotifications()
+            .checkPermissionList(
+                channelKey: firebaseChannelKey,
+                permissions: requestedPermissions)
+            .then((List<NotificationPermission> permissions) async {
+          var targetPermissions = List.from(requestedPermissions);
+          targetPermissions.remove(NotificationPermission.FullScreenIntent);
+          if (!Set.of(permissions).containsAll(Set.of(targetPermissions))) {
+            await AwesomeNotifications().requestPermissionToSendNotifications(
+              channelKey: firebaseChannelKey,
+              permissions: requestedPermissions,
+            );
+          }
+        });
       } on Exception catch (error) {
         log("[ERROR], request notification permission exception, ${error.toString()}");
       }
@@ -162,41 +173,44 @@ class NotificationManager {
 
   void listenAwesomeNotification() {
     if (defaultTargetPlatform == TargetPlatform.android) {
-      //  BEFORE!! MaterialApp widget, starts to listen the notification actions
-      actionStreamSubscription =
-          AwesomeNotifications().actionStream.listen(onActionStream);
+      actionStreamSubscription ??= AwesomeNotifications().actionStream.listen(onActionStream);
     }
   }
 
-  void onActionStream(ReceivedNotification notifycation) {
+  void onActionStream(ReceivedNotification notification) {
     AndroidForegroundService.stopForeground();
     IsolateNameServer.lookupPortByName(backgroundIsolatePortName)
         ?.send("stop_ring");
 
-    if (notifycation.channelKey != firebaseChannelKey) {
+    if (notification.channelKey != firebaseChannelKey) {
       log('unknown channel key');
       return;
     }
-    if (notifycation is ReceivedAction) {
-      var action = notifycation;
+    if (notification is ReceivedAction) {
+      var action = notification;
       switch (action.buttonKeyPressed) {
         case 'decline':
           CallBloc.shared.add(CallInviteDecline());
           return;
         case 'accept':
-          CallBloc.shared.add(CallInviteAccept(notifycation.payload!['roomID']!,
-              notifycation.payload!.containsKey("targetUserIDList")));
+          CallBloc.shared.add(
+            CallInviteAccept(
+              notification.payload!['roomID']!,
+              notification.payload!.containsKey("targetUserIDList"),
+              true,
+            ),
+          );
           return;
         default:
           break;
       }
     }
     CallBloc.shared.add(CallReceiveInvited(
-        notifycation.payload!['callerUserID']!,
-        notifycation.payload!['callerUserName']!,
-        notifycation.payload!['callerIconUrl']!,
-        notifycation.payload!['roomID']!,
-        notifycation.payload!.containsKey("targetUserIDList")));
+        notification.payload!['callerUserID']!,
+        notification.payload!['callerUserName']!,
+        notification.payload!['callerIconUrl']!,
+        notification.payload!['roomID']!,
+        notification.payload!.containsKey("targetUserIDList")));
   }
 
   Future<void> onFirebaseOpenedAppMessage(RemoteMessage message) async {
