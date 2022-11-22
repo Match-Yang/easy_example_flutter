@@ -335,10 +335,6 @@ class _CallPageState extends State<CallPage> {
     };
     ZegoExpressManager.shared.onRoomUserDeviceUpdate =
         (ZegoDeviceUpdateType updateType, String userID, String roomID) {};
-    ZegoExpressManager.shared.onRoomTokenWillExpire =
-        (int remainTimeInSecond, String roomID) {
-      // TODO You need to request a new token when this callback is trigger
-    };
   }
 
   @override
