@@ -16,6 +16,10 @@ class _GroupCallPageState extends State<GroupCallPage> {
   bool _cameraEnable = true;
   List<String> _userIDList = [];
 
+  void onVideoViewUpdated() {
+    setState(() {});
+  }
+
   void prepareSDK(int appID, String appSign) {
     ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
@@ -23,6 +27,10 @@ class _GroupCallPageState extends State<GroupCallPage> {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
           if (!_userIDList.contains(userID)) {
+            ZegoExpressManager.shared
+                .getVideoViewNotifier(userID)
+                .addListener(onVideoViewUpdated);
+
             setState(() {
               _userIDList = List.from(_userIDList)..add(userID);
             });
@@ -30,6 +38,10 @@ class _GroupCallPageState extends State<GroupCallPage> {
         }
       } else {
         for (final userID in userIDList) {
+          ZegoExpressManager.shared
+              .getVideoViewNotifier(userID)
+              .removeListener(onVideoViewUpdated);
+
           if (_userIDList.contains(userID)) {
             setState(() {
               _userIDList = List.from(_userIDList)..remove(userID);
@@ -93,13 +105,23 @@ class _GroupCallPageState extends State<GroupCallPage> {
                   itemBuilder: (BuildContext ctx, index) {
                     return Container(
                       alignment: Alignment.center,
-                      child: index == 0
-                          ? ZegoExpressManager.shared.getLocalVideoView()
-                          : ZegoExpressManager.shared
-                              .getRemoteVideoView(_userIDList[index]),
                       decoration: BoxDecoration(
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(15)),
+                      child: index == 0
+                          ? ZegoExpressManager.shared
+                                  .getVideoViewNotifier(
+                                      ZegoExpressManager.shared.localUserID)
+                                  .value ??
+                              Container(
+                                color: Colors.white,
+                              )
+                          : ZegoExpressManager.shared
+                                  .getVideoViewNotifier(_userIDList[index])
+                                  .value ??
+                              Container(
+                                color: Colors.black54,
+                              ),
                     );
                   }),
             ),

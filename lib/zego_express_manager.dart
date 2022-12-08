@@ -28,6 +28,8 @@ enum ZegoDeviceUpdateType { cameraOpen, cameraClose, micUnMute, micMute }
 
 // key is user id, value is participant model
 typedef UserIDParticipantMap = Map<String, ZegoParticipant>;
+// key is user id, value is widget
+typedef UserIDCanvasViewMap = Map<String, ValueNotifier<Widget?>>;
 // key is user id, value is view id
 typedef UserIDViewIDMap = Map<String, int>;
 // key is stream id, value is participant model
@@ -57,12 +59,15 @@ class ZegoExpressManager {
   bool _isPlayingStream = false;
   ZegoParticipant _localParticipant = ZegoParticipant("", "");
   final UserIDParticipantMap _participantDic = {};
+  final UserIDCanvasViewMap _canvasViewDic = {};
   final StreamIDParticipantMap _streamDic = {};
   String _roomID = "";
   ZegoMediaOptions _mediaOptions = [
     ZegoMediaOption.autoPlayAudio,
     ZegoMediaOption.autoPlayVideo
   ];
+
+  String get localUserID => _localParticipant.userID;
 
   void createEngine(int appID, String appSign) {
     // if your scenario is live,you can change to ZegoScenario.Live.
@@ -96,19 +101,24 @@ class ZegoExpressManager {
           participant.streamID = _generateStreamID(user.userID, roomID);
           _participantDic[participant.userID] = participant;
           _streamDic[participant.streamID] = participant;
+
+          createVideoView(user.userID);
         }
       } else {
+        /// user leave
         for (final user in userList) {
           userIDList.add(user.userID);
           if (_participantDic.containsKey(user.userID)) {
             var participant = _participantDic[user.userID];
-            ZegoExpressEngine.instance.destroyPlatformView(participant!.viewID);
+            ZegoExpressEngine.instance.destroyCanvasView(participant!.viewID);
 
             _streamDic.remove(_participantDic[user.userID]!.streamID);
             _participantDic.remove(user.userID);
+            _canvasViewDic.remove(user.userID);
           }
         }
       }
+
       if (onRoomUserUpdate != null) {
         onRoomUserUpdate!(updateType, userIDList, roomID);
       }
@@ -216,52 +226,56 @@ class ZegoExpressManager {
     }
   }
 
-  Widget? getLocalVideoView() {
-    if (_localParticipant.userID.isEmpty) {
-      log("Error: [getLocalVideoView] You need to login room before you call getLocalVideoView");
-      return null;
+  ValueNotifier<Widget?> getVideoViewNotifier(String userID) {
+    if (_roomID.isEmpty) {
+      log("Error: [getVideoViewNotifier] You need to join the room first and then get the videoView");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
     }
-    Widget? previewViewWidget =
-        ZegoExpressEngine.instance.createPlatformView((viewID) {
-      _localParticipant.viewID = viewID;
+
+    if (userID.isEmpty) {
+      log("Error: [getVideoViewNotifier] You need to login room before you call getLocalVideoView");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
+    }
+
+    if (_localParticipant.userID != userID &&
+        !_participantDic.containsKey(userID)) {
+      log("Error: [getVideoViewNotifier] there is no user with id ($userID) in the room");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
+    }
+
+    if (_canvasViewDic.containsKey(userID)) {
+      return _canvasViewDic[userID]!;
+    }
+
+    return createVideoView(userID);
+  }
+
+  ValueNotifier<Widget?> createVideoView(String userID) {
+    if (_canvasViewDic.containsKey(userID)) {
+      return _canvasViewDic[userID]!;
+    }
+
+    _canvasViewDic[userID] = ValueNotifier<Widget?>(null);
+
+    ZegoExpressEngine.instance.createCanvasView((viewID) {
+      _participantDic[userID]!.viewID = viewID;
 
       // Start preview using platform view
       // Set the preview canvas
       ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
       // Start preview
       ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
+    }).then((videoView) {
+      _canvasViewDic[userID]!.value = videoView;
     });
-    return previewViewWidget;
-  }
 
-  // Get the view and call setState to set the view to render tree
-  // Call this function after join room
-  Widget? getRemoteVideoView(String userID) {
-    if (_roomID.isEmpty) {
-      log("Error: [getRemoteVideoView] You need to join the room first and then get the videoView");
-      return null;
-    }
-    if (userID.isEmpty) {
-      log("Error: [getRemoteVideoView] userID is empty, please enter a right userID");
-      return null;
-    }
-    if (!_participantDic.containsKey(userID)) {
-      log("Error: [getRemoteVideoView] there is no user with id ($userID) in the room");
-      return null;
-    } else {
-      if (_participantDic[userID]?.viewID != -1) {
-        ZegoExpressEngine.instance
-            .destroyPlatformView(_participantDic[userID]!.viewID);
-      }
-      Widget? playViewWidget =
-          ZegoExpressEngine.instance.createPlatformView((viewID) {
-        var participant = _participantDic[userID];
-        participant!.viewID = viewID;
-
-        _playStream(participant.streamID);
-      });
-      return playViewWidget;
-    }
+    return _canvasViewDic[userID]!;
   }
 
   void enableCamera(bool enable) {
@@ -310,10 +324,11 @@ class ZegoExpressManager {
     ZegoExpressEngine.instance.stopPreview();
     _participantDic.forEach((_, participant) {
       if (participant.viewID != -1) {
-        ZegoExpressEngine.instance.destroyPlatformView(participant.viewID);
+        ZegoExpressEngine.instance.destroyCanvasView(participant.viewID);
       }
     });
     _participantDic.clear();
+    _canvasViewDic.clear();
     _streamDic.clear();
     _roomID = '';
     ZegoExpressEngine.instance.logoutRoom();

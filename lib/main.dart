@@ -160,19 +160,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       title: Text(
                         'Your UserID is: $userID',
                         style:
-                            const TextStyle(fontSize: 20, color: Colors.blue),
+                        const TextStyle(fontSize: 20, color: Colors.blue),
                       ),
                     ),
                     ListTile(
                       leading: const Icon(Icons.person_add),
                       title: TextField(
                         style:
-                            const TextStyle(fontSize: 20, color: Colors.blue),
+                        const TextStyle(fontSize: 20, color: Colors.blue),
                         keyboardType: TextInputType.number,
                         onChanged: (input) => targetID = input,
                         decoration: const InputDecoration(
                           hintStyle:
-                              TextStyle(fontSize: 15, color: Colors.blue),
+                          TextStyle(fontSize: 15, color: Colors.blue),
                           hintText: 'please input target UserID',
                         ),
                       ),
@@ -242,7 +242,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         Uri.parse('$tokenServerUrl/store_fcm_token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'deviceType': defaultTargetPlatform.toString().split(".").last,
+          'deviceType': defaultTargetPlatform
+              .toString()
+              .split(".")
+              .last,
           'token': fcmToken,
           'userID': userID,
         }),
@@ -255,7 +258,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         } else {
           firebaseReady = ReadyState.failed;
           firebaseTips =
-              'Store fcm token failed, ${json.decode(response.body)['message'] ?? ""}';
+          'Store fcm token failed, ${json.decode(response.body)['message'] ??
+              ""}';
         }
       });
     } on Exception catch (error) {
@@ -343,12 +347,12 @@ class CallPage extends StatefulWidget {
 }
 
 class _CallPageState extends State<CallPage> {
-  Widget _bigView = Container(
+  ValueNotifier<Widget?> _bigView = ValueNotifier<Widget?>(Container(
     color: Colors.white,
-  );
-  Widget _smallView = Container(
+  ));
+  ValueNotifier<Widget?> _smallView = ValueNotifier<Widget?>(Container(
     color: Colors.black54,
-  );
+  ));
   bool _joinedRoom = false;
   bool _micEnable = true;
   bool _cameraEnable = true;
@@ -359,9 +363,7 @@ class _CallPageState extends State<CallPage> {
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
-          setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
-          });
+          _smallView = ZegoExpressManager.shared.getVideoViewNotifier(userID);
         }
       }
     };
@@ -390,9 +392,11 @@ class _CallPageState extends State<CallPage> {
           ZegoMediaOption.publishLocalVideo,
           ZegoMediaOption.autoPlayAudio,
           ZegoMediaOption.autoPlayVideo
-        ]);
+        ]).then((value) {
+          _bigView = ZegoExpressManager.shared.createVideoView(userID);
+        });
+
         setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
           _joinedRoom = true;
         });
       }
@@ -406,16 +410,26 @@ class _CallPageState extends State<CallPage> {
       body: Center(
         child: Stack(
           children: <Widget>[
-            SizedBox.expand(
-              child: _bigView,
-            ),
+            ValueListenableBuilder<Widget?>(
+                valueListenable: _bigView,
+                builder: (context, videoView, _) {
+                  return SizedBox.expand(
+                    child: videoView,
+                  );
+                }),
             Positioned(
                 top: 100,
                 right: 16,
                 child: SizedBox(
                   width: 114,
                   height: 170,
-                  child: _smallView,
+                  child: ValueListenableBuilder<Widget?>(
+                      valueListenable: _smallView,
+                      builder: (context, videoView, _) {
+                        return SizedBox.expand(
+                          child: videoView,
+                        );
+                      }),
                 )),
             Positioned(
                 bottom: 100,
@@ -456,10 +470,10 @@ class _CallPageState extends State<CallPage> {
                       onPressed: () {
                         ZegoExpressManager.shared.leaveRoom();
                         setState(() {
-                          _bigView = Container(
+                          _bigView.value = Container(
                             color: Colors.white,
                           );
-                          _smallView = Container(
+                          _smallView.value = Container(
                             color: Colors.black54,
                           );
                           _joinedRoom = false;
@@ -506,7 +520,8 @@ Future<bool> requestPermission() async {
       return false;
     }
   } on Exception catch (error) {
-    log("[ERROR], request microphone permission exception, ${error.toString()}");
+    log("[ERROR], request microphone permission exception, ${error
+        .toString()}");
   }
 
   try {
@@ -546,11 +561,11 @@ Widget prepareTips(ReadyState readyState, String tips, VoidCallback retry) {
 
   return readyState == ReadyState.failed
       ? GestureDetector(
-          onTap: retry,
-          child: Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.red)),
-            child: listTitle,
-          ),
-        )
+    onTap: retry,
+    child: Container(
+      decoration: BoxDecoration(border: Border.all(color: Colors.red)),
+      child: listTitle,
+    ),
+  )
       : listTitle;
 }
