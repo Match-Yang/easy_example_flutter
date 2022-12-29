@@ -96,13 +96,16 @@ class ZegoExpressManager {
       if (updateType == ZegoUpdateType.Add) {
         for (final user in userList) {
           userIDList.add(user.userID);
+
           ZegoParticipant participant =
               ZegoParticipant(user.userID, user.userName);
           participant.streamID = _generateStreamID(user.userID, roomID);
           _participantDic[participant.userID] = participant;
           _streamDic[participant.streamID] = participant;
 
-          createVideoView(user.userID);
+          createVideoView(participant.userID, onCreated: () {
+            _playStream(participant.streamID);
+          });
         }
       } else {
         /// user leave
@@ -256,7 +259,10 @@ class ZegoExpressManager {
     return createVideoView(userID);
   }
 
-  ValueNotifier<Widget?> createVideoView(String userID) {
+  ValueNotifier<Widget?> createVideoView(
+    String userID, {
+    VoidCallback? onCreated,
+  }) {
     if (_canvasViewDic.containsKey(userID)) {
       return _canvasViewDic[userID]!;
     }
@@ -266,11 +272,14 @@ class ZegoExpressManager {
     ZegoExpressEngine.instance.createCanvasView((viewID) {
       _participantDic[userID]!.viewID = viewID;
 
-      // Start preview using platform view
-      // Set the preview canvas
-      ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
-      // Start preview
-      ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
+      if (_localParticipant.userID == userID) {
+        // Start preview using platform view
+        // Set the preview canvas
+        ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
+        // Start preview
+        ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
+      }
+      onCreated?.call();
     }).then((videoView) {
       _canvasViewDic[userID]!.value = videoView;
     });

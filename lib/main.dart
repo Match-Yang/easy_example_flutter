@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:developer';
 import 'dart:convert';
@@ -26,8 +27,8 @@ String appSign = ;
 String tokenServerUrl = "";
 
 // test data
+
 String userID = math.Random().nextInt(10000).toString();
-String targetID = '';
 
 Future<void> main() async {
   // need ensureInitialized
@@ -80,6 +81,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static ReadyState firebaseReady = ReadyState.notReady;
   static String firebaseTips = 'starting...';
 
+  StreamSubscription? subscription;
+  final targetUserIDController = TextEditingController();
+
   bool get ready => ReadyState.ready == firebaseReady;
 
   @override
@@ -94,12 +98,33 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     requestPermission();
     requestNotificationPermission();
 
+    subscription = CallBloc.shared.stream.listen((state) {
+      if (state is CallInviteAccepted) {
+        var callState = state;
+        var roomArgs = {
+          'userID': userID,
+          'roomID': callState.roomID,
+          'appID': appID.toString(),
+        };
+        if (callState.isGroupCall) {
+          Navigator.pushNamed(context, '/group_call_page', arguments: roomArgs);
+        } else {
+          Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
+        }
+      }
+    });
+
     if (ReadyState.ready != firebaseReady) requestFCMToken();
   }
 
   @override
   void dispose() async {
     super.dispose();
+
+    subscription?.cancel();
+
+    targetUserIDController.dispose();
+
     WidgetsBinding.instance?.removeObserver(this);
   }
 
@@ -120,115 +145,99 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<CallBloc, CallState>(
-      listener: (context, state) {
-        if (state is CallInviteAccepted) {
-          var callState = state;
-          var roomArgs = {
-            'userID': userID,
-            'roomID': callState.roomID,
-            'appID': appID.toString(),
-          };
-          if (callState.isGroupCall) {
-            Navigator.pushNamed(context, '/group_call_page',
-                arguments: roomArgs);
-          } else {
-            Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
-          }
-        }
-      },
-      child: Stack(children: [
-        Scaffold(
-          body: Container(
-            color: Colors.white,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                const Text(
-                  'ZEGOCLOUD',
-                  style: TextStyle(fontSize: 30, color: Colors.blue),
-                ),
-                Column(
-                  children: [
-                    prepareTips(
-                      firebaseReady,
-                      firebaseTips,
-                      requestFCMToken,
+    return Stack(children: [
+      Scaffold(
+        body: Container(
+          color: Colors.white,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              const Text(
+                'ZEGOCLOUD',
+                style: TextStyle(fontSize: 30, color: Colors.blue),
+              ),
+              Column(
+                children: [
+                  prepareTips(
+                    firebaseReady,
+                    firebaseTips,
+                    requestFCMToken,
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person),
+                    title: Text(
+                      'Your UserID is: $userID',
+                      style: const TextStyle(fontSize: 20, color: Colors.blue),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.person),
-                      title: Text(
-                        'Your UserID is: $userID',
-                        style:
-                        const TextStyle(fontSize: 20, color: Colors.blue),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person_add),
+                    title: TextField(
+                      style: const TextStyle(fontSize: 20, color: Colors.blue),
+                      keyboardType: TextInputType.number,
+                      controller: targetUserIDController,
+                      decoration: const InputDecoration(
+                        hintStyle: TextStyle(fontSize: 15, color: Colors.blue),
+                        hintText: 'please input target UserID',
                       ),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.person_add),
-                      title: TextField(
-                        style:
-                        const TextStyle(fontSize: 20, color: Colors.blue),
-                        keyboardType: TextInputType.number,
-                        onChanged: (input) => targetID = input,
-                        decoration: const InputDecoration(
-                          hintStyle:
-                          TextStyle(fontSize: 15, color: Colors.blue),
-                          hintText: 'please input target UserID',
-                        ),
-                      ),
-                      trailing: ElevatedButton(
-                        child: ready
-                            ? const Icon(Icons.call)
-                            : const Text("please wait"),
-                        onPressed: () {
-                          if (ready) {
-                            if (targetID.contains(',')) {
-                              inviteGroupCall(targetID.split(','));
-                            } else {
-                              callInvite(targetID);
-                            }
+                    trailing: ElevatedButton(
+                      child: ready
+                          ? const Icon(Icons.call)
+                          : const Text("please wait"),
+                      onPressed: () {
+                        if (targetUserIDController.text.isEmpty) {
+                          return;
+                        }
+
+                        if (ready) {
+                          if (targetUserIDController.text.contains(',')) {
+                            inviteGroupCall(
+                                targetUserIDController.text.split(','));
+                          } else {
+                            callInvite(targetUserIDController.text);
                           }
-                        },
-                      ),
+                        }
+                      },
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        BlocBuilder<CallBloc, CallState>(
-          builder: (context, state) {
-            switch (state.runtimeType) {
-              case CallInitial:
-                return Container();
-              case CallInviteReceiving:
-                NotificationRing.shared.startRing();
-                var callState = state as CallInviteReceiving;
-                return NotifycationWidget(
-                  callerUserID: callState.callerUserID,
-                  callerUserName: callState.callerUserName,
-                  callerIconUrl: callState.callerIconUrl,
-                  onDecline: () {
-                    NotificationRing.shared.stopRing();
-                    CallBloc.shared.add(CallInviteDecline());
-                  },
-                  onAccept: () {
-                    NotificationRing.shared.stopRing();
-                    CallBloc.shared.add(CallInviteAccept(
-                      callState.roomID,
-                      callState.isGroupCall,
-                      false,
-                    ));
-                  },
-                );
-              default:
-                return Container();
-            }
-          },
-        ),
-      ]),
-    );
+      ),
+      BlocBuilder<CallBloc, CallState>(
+        builder: (context, state) {
+          switch (state.runtimeType) {
+            case CallInitial:
+              return Container();
+            case CallInviteReceiving:
+              NotificationRing.shared.startRing();
+              var callState = state as CallInviteReceiving;
+              return NotifycationWidget(
+                callerUserID: callState.callerUserID,
+                callerUserName: callState.callerUserName,
+                callerIconUrl: callState.callerIconUrl,
+                onDecline: () {
+                  NotificationRing.shared.stopRing();
+                  CallBloc.shared.add(CallInviteDecline());
+                },
+                onAccept: () {
+                  NotificationRing.shared.stopRing();
+                  CallBloc.shared.add(CallInviteAccept(
+                    callState.roomID,
+                    callState.isGroupCall,
+                    false,
+                  ));
+                },
+              );
+            default:
+              return Container();
+          }
+        },
+      ),
+    ]);
   }
 
   void requestFCMToken() async {
@@ -242,10 +251,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         Uri.parse('$tokenServerUrl/store_fcm_token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'deviceType': defaultTargetPlatform
-              .toString()
-              .split(".")
-              .last,
+          'deviceType': defaultTargetPlatform.toString().split(".").last,
           'token': fcmToken,
           'userID': userID,
         }),
@@ -258,8 +264,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         } else {
           firebaseReady = ReadyState.failed;
           firebaseTips =
-          'Store fcm token failed, ${json.decode(response.body)['message'] ??
-              ""}';
+              'Store fcm token failed, ${json.decode(response.body)['message'] ?? ""}';
         }
       });
     } on Exception catch (error) {
@@ -267,7 +272,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         firebaseReady = ReadyState.failed;
         firebaseTips = 'Store fcm token failed, ${error.toString()}';
       });
-      log("[ERROR], get fcm token exception, ${error.toString()}");
+      log("[ERROR], store fcm token exception, ${error.toString()}");
     }
   }
 
@@ -277,7 +282,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void callInvite(String targetID) {
-    if (!ready) return;
+    if (!ready) {
+      return;
+    }
+
     http
         .post(
       Uri.parse('$tokenServerUrl/call_invite'),
@@ -302,7 +310,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         };
         Navigator.pushNamed(context, '/call_page', arguments: roomArgs);
       } else {
-        log('call failed');
+        log('call failed, ${response.statusCode}');
       }
     });
   }
@@ -357,13 +365,22 @@ class _CallPageState extends State<CallPage> {
   bool _micEnable = true;
   bool _cameraEnable = true;
 
+  bool _sdkPrepare = false;
+
   void prepareSDK(int appID, String appSign) {
+    if (_sdkPrepare) {
+      return;
+    }
+
+    _sdkPrepare = true;
     ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
-          _smallView = ZegoExpressManager.shared.getVideoViewNotifier(userID);
+          setState(() {
+            _smallView = ZegoExpressManager.shared.getVideoViewNotifier(userID);
+          });
         }
       }
     };
@@ -372,36 +389,39 @@ class _CallPageState extends State<CallPage> {
   }
 
   @override
-  void didChangeDependencies() {
-    RouteSettings settings = ModalRoute.of(context)!.settings;
-    if (settings.arguments != null) {
-      // Read arguments
-      Map<String, String> obj = settings.arguments as Map<String, String>;
-      var userID = obj['userID'] ?? "";
-      var roomID = obj['roomID'] ?? "";
-      var appID = int.parse(obj['appID'] ?? "0");
-      var appSign = obj['appSign'] ?? "";
+  void initState() {
+    super.initState();
 
-      // Prepare SDK
-      prepareSDK(appID, appSign);
+    SchedulerBinding.instance?.addPostFrameCallback((_) {
+      RouteSettings settings = ModalRoute.of(context)!.settings;
+      if (settings.arguments != null) {
+        // Read arguments
+        Map<String, String> obj = settings.arguments as Map<String, String>;
+        var userID = obj['userID'] ?? "";
+        var roomID = obj['roomID'] ?? "";
+        var appID = int.parse(obj['appID'] ?? "0");
+        var appSign = obj['appSign'] ?? "";
 
-      // Join room and wait for other...
-      if (!_joinedRoom) {
-        ZegoExpressManager.shared.joinRoom(roomID, ZegoUser(userID, userID), [
-          ZegoMediaOption.publishLocalAudio,
-          ZegoMediaOption.publishLocalVideo,
-          ZegoMediaOption.autoPlayAudio,
-          ZegoMediaOption.autoPlayVideo
-        ]).then((value) {
-          _bigView = ZegoExpressManager.shared.createVideoView(userID);
-        });
+        // Prepare SDK
+        prepareSDK(appID, appSign);
 
-        setState(() {
+        // Join room and wait for other...
+        if (!_joinedRoom) {
           _joinedRoom = true;
-        });
+
+          ZegoExpressManager.shared.joinRoom(roomID, ZegoUser(userID, userID), [
+            ZegoMediaOption.publishLocalAudio,
+            ZegoMediaOption.publishLocalVideo,
+            ZegoMediaOption.autoPlayAudio,
+            ZegoMediaOption.autoPlayVideo
+          ]).then((value) {
+            setState(() {
+              _bigView = ZegoExpressManager.shared.createVideoView(userID);
+            });
+          });
+        }
       }
-    }
-    super.didChangeDependencies();
+    });
   }
 
   @override
@@ -410,13 +430,13 @@ class _CallPageState extends State<CallPage> {
       body: Center(
         child: Stack(
           children: <Widget>[
-            ValueListenableBuilder<Widget?>(
-                valueListenable: _bigView,
-                builder: (context, videoView, _) {
-                  return SizedBox.expand(
-                    child: videoView,
-                  );
-                }),
+            SizedBox.expand(
+              child: ValueListenableBuilder<Widget?>(
+                  valueListenable: _bigView,
+                  builder: (context, videoView, _) {
+                    return videoView ?? Container(color: Colors.green);
+                  }),
+            ),
             Positioned(
                 top: 100,
                 right: 16,
@@ -426,9 +446,7 @@ class _CallPageState extends State<CallPage> {
                   child: ValueListenableBuilder<Widget?>(
                       valueListenable: _smallView,
                       builder: (context, videoView, _) {
-                        return SizedBox.expand(
-                          child: videoView,
-                        );
+                        return videoView ?? Container(color: Colors.red);
                       }),
                 )),
             Positioned(
@@ -469,17 +487,17 @@ class _CallPageState extends State<CallPage> {
                       ),
                       onPressed: () {
                         ZegoExpressManager.shared.leaveRoom();
-                        setState(() {
-                          _bigView.value = Container(
-                            color: Colors.white,
-                          );
-                          _smallView.value = Container(
-                            color: Colors.black54,
-                          );
-                          _joinedRoom = false;
-                        });
+
+                        _bigView.value = Container(
+                          color: Colors.white,
+                        );
+                        _smallView.value = Container(
+                          color: Colors.black54,
+                        );
+                        _joinedRoom = false;
+
                         // Back to home page
-                        Navigator.pushReplacementNamed(context, '/home_page');
+                        Navigator.pop(context, '/home_page');
                       },
                     ),
                     // Camera control button
@@ -520,8 +538,7 @@ Future<bool> requestPermission() async {
       return false;
     }
   } on Exception catch (error) {
-    log("[ERROR], request microphone permission exception, ${error
-        .toString()}");
+    log("[ERROR], request microphone permission exception, ${error.toString()}");
   }
 
   try {
@@ -561,11 +578,11 @@ Widget prepareTips(ReadyState readyState, String tips, VoidCallback retry) {
 
   return readyState == ReadyState.failed
       ? GestureDetector(
-    onTap: retry,
-    child: Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.red)),
-      child: listTitle,
-    ),
-  )
+          onTap: retry,
+          child: Container(
+            decoration: BoxDecoration(border: Border.all(color: Colors.red)),
+            child: listTitle,
+          ),
+        )
       : listTitle;
 }

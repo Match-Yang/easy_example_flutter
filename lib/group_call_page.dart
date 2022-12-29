@@ -167,7 +167,7 @@ class _GroupCallPageState extends State<GroupCallPage> {
                           _userIDList = [];
                         });
                         // Back to home page
-                        Navigator.pushReplacementNamed(context, '/home_page');
+                        Navigator.pop(context, '/home_page');
                       },
                     ),
                     // Camera control button
