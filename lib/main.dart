@@ -22,8 +22,9 @@ import 'zego_express_manager.dart';
 int appID = ;
 String appSign = ;
 
-// step2. Get the server from: https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs
-// Heroku server url for example 'https://xxx.herokuapp.com'
+// step2. Get the server from: https://github.com/ZEGOCLOUD/easy_server_nextjs
+
+// Vecel server url for example 'https://your_vercel_project_name.vercel.app/api'
 String tokenServerUrl = "";
 
 // test data

@@ -54,15 +54,15 @@ flutterfire configure
 * You need to set `appID` to your own account, which can be obtained in the [ZEGO Admin Console](https://console.zegocloud.com/).
 * You need to set `serverUrl` to a valid URL that can be obtained for Zego auth token and post FCM notification request.
 
-> We use Heroku for test backen service, you can deploy the token generation service with one simple click.
+> We use Vecel for test backen service, you can deploy the token generation service with one simple click.
 >
-> [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs)
+> [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FZEGOCLOUD%2Feasy_server_nextjs&env=ZEGOCLOUD_APP_ID,ZEGOCLOUD_SERVER_SECRET,FA_PROJECT_ID,FA_PRIVATE_KEY_ID,FA_PRIVATE_KEY,FA_CLIENT_EMAIL,FA_CLIENT_ID,FA_CLIENT_X509_CERT_URL)
 >
-> Once deployed completed, you will get an url for your instance, try accessing `https://<heroku url>/access_token?uid=1234` to check if it works.
+> Once deployed completed, you will get an url for your instance, try accessing `https://your_vercel_project_name.vercel.app/api/get_access_token?uid=123` to check if it works.
 >
-> Check [easy_example_call_server_nodejs](https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs) for more details.
+> Check [easy_server_nextjs](https://github.com/ZEGOCLOUD/easy_server_nextjs) for more details.
 >
-> Note⚠️⚠️⚠️: There are some limitations for Heroku free account, please check this [Free Dyno Hours](https://devcenter.heroku.com/articles/free-dyno-hours) if you want to use Heroku for your production service.
+
 
 ![1653297768165.png](docs/images/appid.png)
 
@@ -363,43 +363,26 @@ now, you will receive a test notification like this!
 
 ![1654508446657.png](docs/images/1654508446657.png)
 
-#### One-click deployment of heroku test service
+#### One-click deployment of Vecel test service
 
-We use Heroku for test backen service, Even if you're not a backend developer, or even if your team uses another backend platform, don't worry, it's completely free for us to test!
+> We use Vecel for test backen service, you can deploy the token generation service with one simple click.
+>
+> [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FZEGOCLOUD%2Feasy_server_nextjs&env=ZEGOCLOUD_APP_ID,ZEGOCLOUD_SERVER_SECRET,FA_PROJECT_ID,FA_PRIVATE_KEY_ID,FA_PRIVATE_KEY,FA_CLIENT_EMAIL,FA_CLIENT_ID,FA_CLIENT_X509_CERT_URL)
+>
+> Once deployed completed, you will get an url for your instance, try accessing `https://your_vercel_project_name.vercel.app/api/get_access_token?uid=123` to check if it works.
+>
+> Check [easy_server_nextjs](https://github.com/ZEGOCLOUD/easy_server_nextjs) for more details.
+>
 
-you can deploy the token generation service with one simple click!
+When deploying Vecel, you need to get the relevant configuration of firebase here
 
- [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs)
 
-Once deployed completed, you will get an url for your instance, try accessing `https://<heroku url>/access_token?uid=1234` to check if it works.
-
-Check [easy_example_call_server_nodejs](https://github.com/ZEGOCLOUD/easy_example_call_server_nodejs) for more details.
-
-Note⚠️⚠️⚠️: There are some limitations for Heroku free account, please check this [Free Dyno Hours](https://devcenter.heroku.com/articles/free-dyno-hours) if you want to use Heroku for your production service.
-
-When deploying heroku, you need to get the relevant configuration of firebase here
-
-![1654512331256.png](docs/images/1654512331256.png)
-
-After the one-click deployment is complete, click here to get the public network link of your server
-
-![1654512390577.png](docs/images/1654512390577.png)
-
-Click Setting
-
-![1654512545634.png](docs/images/1654512545634.png)
-
-scroll down, you can see your domain here
-
-![1654512614648.png](docs/images/1654512614648.png)
-
-> tips: This is the project I'm using to write this doc test, and I'll turn it off anytime after I'm done writing the docs. (Of course, even if I don't turn it off, it won't work for you, because the project needs to be bound to the zego appid)
 
 #### Use postman to test our server
 
 We can do a simple test of the service using software like postman, I am using the `Thunder Client` plugin of vscode here.
 
-We send a test post request to `https://eetest-callinvite.herokuapp.com/call_invite`, the body is the following json
+We send a test post request to `https://your_vercel_project_name.vercel.app/api/call_invite`, the body is the following json
 
 ````json
 
@@ -429,7 +412,7 @@ Of course, we can also use the curl command lineals
 
 curl -X POST \
 
-'https://eetest-callinvite.herokuapp.com/call_invite' \
+'https://your_vercel_project_name.vercel.app/api/call_invite' \
 
   --header 'Accept: */*' \
 
@@ -484,9 +467,9 @@ In the demo, we use global variables for simple processing. If you are integrati
 int appID = ;
 
 
-// step2. Get the server from: https://github.com/ZEGOCLOUD/dynamic_token_server_nodejs
+// step2. Get the server from: https://github.com/ZEGOCLOUD/easy_server_nextjs
 
-// Heroku server url for example 'https://xxx.herokuapp.com'
+// Vecel server url for example 'https://your_vercel_project_name.vercel.app/api'
 
 String tokenServerUrl = ;
 
