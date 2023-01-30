@@ -13,26 +13,24 @@ class VideoCallPage extends StatefulWidget {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  Widget _bigView = Container(
+  ValueNotifier<Widget?> _bigView = ValueNotifier<Widget?>(Container(
     color: Colors.white,
-  );
-  Widget _smallView = Container(
+  ));
+  ValueNotifier<Widget?> _smallView = ValueNotifier<Widget?>(Container(
     color: Colors.black54,
-  );
+  ));
   bool _joinedRoom = false;
   bool _micEnable = true;
   bool _cameraEnable = true;
 
   void prepareSDK(int appID, String appSign) {
-    // TODO You need to call createEngine before call any of other methods of the SDK
-    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       if (updateType == ZegoUpdateType.Add) {
         for (final userID in userIDList) {
           // For one-to-one call we just need to display the other user at the small view
           setState(() {
-            _smallView = ZegoExpressManager.shared.getRemoteVideoView(userID)!;
+            _smallView = ZegoExpressManager.shared.getVideoViewNotifier(userID);
           });
         }
       }
@@ -67,7 +65,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
         ]);
         // You can get your own view and display it immediately after joining the room
         setState(() {
-          _bigView = ZegoExpressManager.shared.getLocalVideoView()!;
+          _bigView = ZegoExpressManager.shared.createVideoView(userID);
           _joinedRoom = true;
         });
       }
@@ -81,11 +79,26 @@ class _VideoCallPageState extends State<VideoCallPage> {
       body: Center(
         child: Stack(
           children: <Widget>[
-            SizedBox.expand(child: _bigView),
+            SizedBox.expand(
+              child: ValueListenableBuilder<Widget?>(
+                  valueListenable: _bigView,
+                  builder: (context, videoView, _) {
+                    return videoView ?? Container(color: Colors.green);
+                  }),
+            ),
             Positioned(
-                top: 100,
-                right: 16,
-                child: SizedBox(width: 114, height: 170, child: _smallView)),
+              top: 100,
+              right: 16,
+              child: SizedBox(
+                width: 114,
+                height: 170,
+                child: ValueListenableBuilder<Widget?>(
+                    valueListenable: _smallView,
+                    builder: (context, videoView, _) {
+                      return videoView ?? Container(color: Colors.red);
+                    }),
+              ),
+            ),
             Positioned(
                 bottom: 100,
                 left: 0,
@@ -97,8 +110,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     ElevatedButton(
                         style: ElevatedButton.styleFrom(
                             shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(10),
-                            primary: Colors.black26),
+                            backgroundColor: Colors.black26,
+                            padding: const EdgeInsets.all(10)),
                         child: Icon(_micEnable ? Icons.mic : Icons.mic_off,
                             size: 28),
                         onPressed: () {
@@ -111,16 +124,16 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     ElevatedButton(
                         style: ElevatedButton.styleFrom(
                             shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(10),
-                            primary: Colors.red),
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.all(10)),
                         child: const Icon(Icons.call_end, size: 28),
                         onPressed: () {
                           ZegoExpressManager.shared.leaveRoom();
                           setState(() {
-                            _bigView = Container(
+                            _bigView.value = Container(
                               color: Colors.white,
                             );
-                            _smallView = Container(
+                            _smallView.value = Container(
                               color: Colors.black54,
                             );
                             _joinedRoom = false;
@@ -132,8 +145,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     ElevatedButton(
                         style: ElevatedButton.styleFrom(
                             shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(10),
-                            primary: Colors.black26),
+                            backgroundColor: Colors.black26,
+                            padding: const EdgeInsets.all(10)),
                         child: Icon(
                             _cameraEnable
                                 ? Icons.camera_alt

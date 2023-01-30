@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:easy_example_flutter/audio_call_page.dart';
 import 'package:easy_example_flutter/video_call_page.dart';
@@ -15,7 +13,21 @@ import 'package:easy_example_flutter/zego_express_manager.dart';
 // For how to use ZEGOCLOUD's API: https://docs.zegocloud.com/article/5560
 //\/\/\/\/\/\/\/\/\/\/\/\/\ 👉👉👉👉 READ THIS IF YOU WANT TO DO MORE 👈👈👈 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
 
+// TODO Get your AppID/AppSign from ZEGOCLOUD Console [My Projects] :  https://console.zegocloud.com/project
+
+const int appID = ;
+const String appSign = '';
+
+// TODO This room id for test only
+//  You can talk to other user with the same roomID
+//  So you need to set an unique roomID for every talk or live streaming
+const String roomID = '123456';
+
 void main() {
+  // need ensureInitialized
+  WidgetsFlutterBinding.ensureInitialized();
+  // You need to call createEngine before call any of other methods of the SDK
+  ZegoExpressManager.shared.createEngine(appID, appSign);
   runApp(const MyApp());
 }
 
@@ -44,18 +56,7 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  // TODO Test data <<<<<<<<<<<<<<
-  // Get your AppID/AppSign from ZEGOCLOUD Console [My Projects] :  https://console.zegocloud.com/project
-  final int appID = ;
-  final String appSign = '';
-
-  // TODO This room id for test only
-  //  You can talk to other user with the same roomID
-  //  So you need to set an unique roomID for every talk or live streaming
-  final String roomID = '123456';
-
   /// Check the permission or ask for the user if not grant
-  ///
   /// TODO Copy to your project
   Future<bool> requestPermission(ZegoMediaOptions options) async {
     if (options.contains(ZegoMediaOption.publishLocalAudio)) {
@@ -114,7 +115,10 @@ class HomePage extends StatelessWidget {
       children: [
         ElevatedButton(
             onPressed: () async {
-              await requestPermission([ZegoMediaOption.publishLocalVideo]);
+              await requestPermission([
+                ZegoMediaOption.publishLocalVideo,
+                ZegoMediaOption.publishLocalAudio
+              ]);
 
               Navigator.pushReplacementNamed(context, '/video_call_page',
                   arguments: await getJoinRoomArgs());

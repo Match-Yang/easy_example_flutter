@@ -19,8 +19,6 @@ class _AudioCallPageState extends State<AudioCallPage> {
   String _remoteUserID = "";
 
   void prepareSDK(int appID, String appSign) {
-    // TODO You need to call createEngine before call any of other methods of the SDK
-    ZegoExpressManager.shared.createEngine(appID, appSign);
     ZegoExpressManager.shared.onRoomUserUpdate =
         (ZegoUpdateType updateType, List<String> userIDList, String roomID) {
       // For one-to-one call we just need to display the other user at the small view
@@ -59,8 +57,7 @@ class _AudioCallPageState extends State<AudioCallPage> {
       // Join room and wait for other...
       if (!_joinedRoom) {
         // We are making a Video Call example so we use the options with publish video/audio and auto play video/audio
-        ZegoExpressManager.shared
-            .joinRoom(roomID, ZegoUser(userID, userID), [
+        ZegoExpressManager.shared.joinRoom(roomID, ZegoUser(userID, userID), [
           ZegoMediaOption.publishLocalAudio,
           ZegoMediaOption.autoPlayAudio,
         ]);
@@ -94,10 +91,10 @@ class _AudioCallPageState extends State<AudioCallPage> {
                 ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26),
+                        backgroundColor: Colors.black26,
+                        padding: const EdgeInsets.all(10)),
                     child:
-                    Icon(_micEnable ? Icons.mic : Icons.mic_off, size: 28),
+                        Icon(_micEnable ? Icons.mic : Icons.mic_off, size: 28),
                     onPressed: () {
                       ZegoExpressManager.shared.enableMic(!_micEnable);
                       setState(() {
@@ -108,8 +105,8 @@ class _AudioCallPageState extends State<AudioCallPage> {
                 ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.red),
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.all(10)),
                     child: const Icon(Icons.call_end, size: 28),
                     onPressed: () {
                       ZegoExpressManager.shared.leaveRoom();
@@ -123,12 +120,10 @@ class _AudioCallPageState extends State<AudioCallPage> {
                 ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(10),
-                        primary: Colors.black26),
+                        backgroundColor: Colors.black26,
+                        padding: const EdgeInsets.all(10)),
                     child: Icon(
-                        _speakerEnable
-                            ? Icons.speaker_phone
-                            : Icons.headphones,
+                        _speakerEnable ? Icons.speaker_phone : Icons.headphones,
                         size: 28),
                     onPressed: () {
                       ZegoExpressManager.shared.enableSpeaker(!_speakerEnable);

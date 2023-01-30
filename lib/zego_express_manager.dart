@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:zego_express_engine/zego_express_engine.dart';
 
@@ -28,19 +27,14 @@ enum ZegoDeviceUpdateType { cameraOpen, cameraClose, micUnMute, micMute }
 
 // key is user id, value is participant model
 typedef UserIDParticipantMap = Map<String, ZegoParticipant>;
+// key is user id, value is widget
+typedef UserIDCanvasViewMap = Map<String, ValueNotifier<Widget?>>;
 // key is user id, value is view id
 typedef UserIDViewIDMap = Map<String, int>;
 // key is stream id, value is participant model
 typedef StreamIDParticipantMap = Map<String, ZegoParticipant>;
 typedef ZegoMediaOptions = List<ZegoMediaOption>;
 
-/// A wrapper for using ZegoExpressEngine's methods
-///
-/// We do some basic logic inside this class, if you use it somewhere then we will recommend you use it anywhere.
-/// If you don't understand ZegoExpressEngine very well, do not mix two of the class on your code.
-/// Instead you should use every methods call of ZegoExpressEngine inside this class
-/// and do everything you want via ZegoExpressManager
-/// Read more about ZegoExpressEngine: https://docs.zegocloud.com/article/3559
 class ZegoExpressManager {
   factory ZegoExpressManager() {
     return _singleton;
@@ -48,55 +42,42 @@ class ZegoExpressManager {
 
   ZegoExpressManager._internal();
 
-  /// Instance of ZegoExpressManager
-  ///
-  /// You should call all of the method via this instance
   static final shared = ZegoExpressManager();
   static final ZegoExpressManager _singleton = ZegoExpressManager._internal();
 
-  /// When you join in the room it will let you know who is in the room right now with [userIDList] and will let you know who is joining the room or who is leaving after you have joined
   void Function(
           ZegoUpdateType updateType, List<String> userIDList, String roomID)?
       onRoomUserUpdate;
-
-  /// Trigger when device's status of user with [userID] has been update
   void Function(ZegoDeviceUpdateType updateType, String userID, String roomID)?
       onRoomUserDeviceUpdate;
-
-  /// Trigger when the access token will expire which mean you should call renewToken to set new token
   void Function(int remainTimeInSecond, String roomID)? onRoomTokenWillExpire;
-
-  /// Trigger when room extra info has been updated by you or others
   void Function(List<ZegoRoomExtraInfo> roomExtraInfoList)?
       onRoomExtraInfoUpdate;
-
-  /// Trigger when room's state changed
   void Function(ZegoRoomState state)? onRoomStateUpdate;
 
   bool _isPlayingStream = false;
   ZegoParticipant _localParticipant = ZegoParticipant("", "");
-  UserIDParticipantMap _participantDic = {};
-  StreamIDParticipantMap _streamDic = {};
+  final UserIDParticipantMap _participantDic = {};
+  final UserIDCanvasViewMap _canvasViewDic = {};
+  final StreamIDParticipantMap _streamDic = {};
   String _roomID = "";
   ZegoMediaOptions _mediaOptions = [
     ZegoMediaOption.autoPlayAudio,
     ZegoMediaOption.autoPlayVideo
   ];
 
-  /// Create SDK instance and setup some callbacks
-  ///
-  /// You need to call createEngine before call any of other methods of the SDK
-  /// Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/createEngine.html
+  String get localUserID => _localParticipant.userID;
+
   void createEngine(int appID, String appSign) {
     // if your scenario is live,you can change to ZegoScenario.Live.
     // if your scenario is communication , you can change to ZegoScenario.Communication
-    ZegoEngineProfile profile = ZegoEngineProfile(appID, ZegoScenario.General,
-        appSign: appSign, enablePlatformView: true);
+    ZegoEngineProfile profile = ZegoEngineProfile(
+        appID, ZegoScenario.StandardVideoCall,
+        appSign: appSign);
 
     ZegoExpressEngine.createEngineWithProfile(profile);
 
     // Setup event handler
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomStreamUpdate.html
     ZegoExpressEngine.onRoomStreamUpdate = (String roomID,
         ZegoUpdateType updateType,
         List<ZegoStream> streamList,
@@ -109,42 +90,42 @@ class ZegoExpressManager {
         }
       }
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomUserUpdate.html
     ZegoExpressEngine.onRoomUserUpdate =
         (String roomID, ZegoUpdateType updateType, List<ZegoUser> userList) {
       List<String> userIDList = [];
       if (updateType == ZegoUpdateType.Add) {
         for (final user in userList) {
           userIDList.add(user.userID);
+
           ZegoParticipant participant =
               ZegoParticipant(user.userID, user.userName);
           participant.streamID = _generateStreamID(user.userID, roomID);
           _participantDic[participant.userID] = participant;
           _streamDic[participant.streamID] = participant;
+
+          createVideoView(participant.userID, onCreated: () {
+            _playStream(participant.streamID);
+          });
         }
       } else {
-        //  Delete
+        /// user leave
         for (final user in userList) {
           userIDList.add(user.userID);
           if (_participantDic.containsKey(user.userID)) {
             var participant = _participantDic[user.userID];
-            if (participant!.viewID != -1) {
-              ZegoExpressEngine.instance
-                  .destroyPlatformView(participant.viewID);
-            }
+            ZegoExpressEngine.instance.destroyCanvasView(participant!.viewID);
 
             _streamDic.remove(_participantDic[user.userID]!.streamID);
             _participantDic.remove(user.userID);
+            _canvasViewDic.remove(user.userID);
           }
         }
       }
+
       if (onRoomUserUpdate != null) {
         onRoomUserUpdate!(updateType, userIDList, roomID);
       }
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRemoteCameraStateUpdate.html
     ZegoExpressEngine.onRemoteCameraStateUpdate =
         (String streamID, ZegoRemoteDeviceState state) {
       if (_streamDic.containsKey(streamID)) {
@@ -158,8 +139,6 @@ class ZegoExpressManager {
         }
       }
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRemoteMicStateUpdate.html
     ZegoExpressEngine.onRemoteMicStateUpdate =
         (String streamID, ZegoRemoteDeviceState state) {
       if (_streamDic.containsKey(streamID)) {
@@ -173,8 +152,6 @@ class ZegoExpressManager {
         }
       }
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomStateUpdate.html
     ZegoExpressEngine.onRoomStateUpdate = (String roomID, ZegoRoomState state,
         int errorCode, Map<String, dynamic> extendedData) {
       _processLog("onRoomStateUpdate", state.index, errorCode);
@@ -182,24 +159,18 @@ class ZegoExpressManager {
         onRoomStateUpdate!(state);
       }
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onPublisherStateUpdate.html
     ZegoExpressEngine.onPublisherStateUpdate = (String streamID,
         ZegoPublisherState state,
         int errorCode,
         Map<String, dynamic> extendedData) {
       _processLog("onPublisherStateUpdate", state.index, errorCode);
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onPlayerStateUpdate.html
     ZegoExpressEngine.onPlayerStateUpdate = (String streamID,
         ZegoPlayerState state,
         int errorCode,
         Map<String, dynamic> extendedData) {
       _processLog("onPlayerStateUpdate", state.index, errorCode);
     };
-
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onNetworkQuality.html
     ZegoExpressEngine.onNetworkQuality = (String userID,
         ZegoStreamQualityLevel upstreamQuality,
         ZegoStreamQualityLevel downstreamQuality) {
@@ -213,15 +184,12 @@ class ZegoExpressManager {
         participant!.network = upstreamQuality;
       }
     };
-
-    // Read more about it:https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomTokenWillExpire.html
     ZegoExpressEngine.onRoomTokenWillExpire =
         (String roomID, int remainTimeInSecond) {
       if (onRoomTokenWillExpire != null) {
         onRoomTokenWillExpire!(remainTimeInSecond, roomID);
       }
     };
-    // Read more about it: https://pub.dev/documentation/zego_express_engine/latest/zego_express_engine/ZegoExpressEngine/onRoomExtraInfoUpdate.html
     ZegoExpressEngine.onRoomExtraInfoUpdate =
         (String roomID, List<ZegoRoomExtraInfo> roomExtraInfoList) {
       if (_roomID == roomID) {
@@ -232,16 +200,8 @@ class ZegoExpressManager {
     };
   }
 
-  /// User [user] joins into the room with id [roomID] with [options] and then can talk to others who are in the room
-  ///
-  /// Options are different from scenario to scenario, here are some example
-  /// Video Call: [ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio, ZegoMediaOption.publishLocalVideo]
-  /// Live Streaming: - host: [ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio, ZegoMediaOption.publishLocalVideo]
-  /// Live Streaming: - audience:[ZegoMediaOption.autoPlayVideo, ZegoMediaOption.autoPlayAudio]
-  /// Chat Room: - host:[ZegoMediaOption.autoPlayAudio, ZegoMediaOption.publishLocalAudio]
-  /// Chat Room: - audience:[ZegoMediaOption.autoPlayAudio]
-  Future<void> joinRoom(
-      String roomID, ZegoUser user, ZegoMediaOptions options) async {
+  Future<void> joinRoom(String roomID, ZegoUser user, ZegoMediaOptions options,
+      {String? token}) async {
     _participantDic.clear();
     _streamDic.clear();
 
@@ -254,7 +214,7 @@ class ZegoExpressManager {
     _localParticipant = participant;
 
     // if you need limit participant count, you can change the max member count
-    var roomConfig = ZegoRoomConfig(0, true, '');
+    var roomConfig = ZegoRoomConfig(0, true, token ?? "");
     await ZegoExpressEngine.instance
         .loginRoom(roomID, user, config: roomConfig);
     if (_mediaOptions.contains(ZegoMediaOption.publishLocalAudio) ||
@@ -269,63 +229,67 @@ class ZegoExpressManager {
     }
   }
 
-  /// Return a widget with your own video
-  Widget? getLocalVideoView() {
-    if (_localParticipant.userID.isEmpty) {
-      log("Error: [getLocalVideoView] You need to login room before you call getLocalVideoView");
-      return null;
-    }
-
-    Widget? previewViewWidget =
-        ZegoExpressEngine.instance.createPlatformView((viewID) {
-      _localParticipant.viewID = viewID;
-
-      // Start preview using platform view
-      // Set the preview canvas
-      ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
-      // Start preview
-      ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
-    });
-
-    return previewViewWidget;
-  }
-
-  /// Return a widget that will render the video of a specific user
-  ///
-  /// Call this function after joining room
-  Widget? getRemoteVideoView(String userID) {
+  ValueNotifier<Widget?> getVideoViewNotifier(String userID) {
     if (_roomID.isEmpty) {
-      log("Error: [getRemoteVideoView] You need to join the room first and then get the videoView");
-      return null;
+      log("Error: [getVideoViewNotifier] You need to join the room first and then get the videoView");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
     }
 
     if (userID.isEmpty) {
-      log("Error: [getRemoteVideoView] userID is empty, please enter a right userID");
-      return null;
+      log("Error: [getVideoViewNotifier] You need to login room before you call getLocalVideoView");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
     }
 
-    if (!_participantDic.containsKey(userID)) {
-      log("Error: [getRemoteVideoView] there is no user with id ($userID) in the room");
-      return null;
+    if (_localParticipant.userID != userID &&
+        !_participantDic.containsKey(userID)) {
+      log("Error: [getVideoViewNotifier] there is no user with id ($userID) in the room");
+      return ValueNotifier<Widget?>(Container(
+        color: Colors.white,
+      ));
     }
 
-    if (_participantDic[userID]?.viewID != -1) {
-      ZegoExpressEngine.instance
-          .destroyPlatformView(_participantDic[userID]!.viewID);
+    if (_canvasViewDic.containsKey(userID)) {
+      return _canvasViewDic[userID]!;
     }
 
-    Widget? playViewWidget =
-        ZegoExpressEngine.instance.createPlatformView((viewID) {
-      var participant = _participantDic[userID];
-      participant!.viewID = viewID;
-
-      _playStream(participant.streamID);
-    });
-
-    return playViewWidget;
+    return createVideoView(userID);
   }
 
-  /// Turn on your camera if [enable] is true
+  ValueNotifier<Widget?> createVideoView(
+    String userID, {
+    VoidCallback? onCreated,
+  }) {
+    if (_canvasViewDic.containsKey(userID)) {
+      return _canvasViewDic[userID]!;
+    }
+
+    _canvasViewDic[userID] = ValueNotifier<Widget?>(null);
+
+    ZegoExpressEngine.instance.createCanvasView(
+      (viewID) {
+        _participantDic[userID]!.viewID = viewID;
+
+        if (_localParticipant.userID == userID) {
+          // Start preview using platform view
+          // Set the preview canvas
+          ZegoCanvas previewCanvas = ZegoCanvas.view(viewID);
+          // Start preview
+          ZegoExpressEngine.instance.startPreview(canvas: previewCanvas);
+        }
+        onCreated?.call();
+      },
+    ).then((videoView) {
+      assert(videoView != null);
+      _canvasViewDic[userID]!.value = videoView;
+    });
+
+    return _canvasViewDic[userID]!;
+  }
+
   void enableCamera(bool enable) {
     if (enable && !_isPlayingStream) {
       ZegoExpressEngine.instance
@@ -345,7 +309,6 @@ class ZegoExpressManager {
     _localParticipant.camera = enable;
   }
 
-  /// Turn on your microphone if [enable] is true
   void enableMic(bool enable) {
     if (enable && !_isPlayingStream) {
       ZegoExpressEngine.instance
@@ -367,24 +330,22 @@ class ZegoExpressManager {
   /// Turn on your speaker if [enable] is true
   void enableSpeaker(bool enable) {
     ZegoExpressEngine.instance.setAudioRouteToSpeaker(enable);
-    // ZegoExpressEngine.instance.muteSpeaker(!enable);
   }
 
-  /// Switch to the front camera if [isFront] is true
   void switchFrontCamera(bool isFront) {
     ZegoExpressEngine.instance.useFrontCamera(isFront);
   }
 
-  /// Leave the room when you are done the talk or if you want to join another room
   void leaveRoom() {
     ZegoExpressEngine.instance.stopPublishingStream();
     ZegoExpressEngine.instance.stopPreview();
     _participantDic.forEach((_, participant) {
       if (participant.viewID != -1) {
-        ZegoExpressEngine.instance.destroyPlatformView(participant.viewID);
+        ZegoExpressEngine.instance.destroyCanvasView(participant.viewID);
       }
     });
     _participantDic.clear();
+    _canvasViewDic.clear();
     _streamDic.clear();
     _roomID = '';
     ZegoExpressEngine.instance.logoutRoom();
@@ -392,16 +353,6 @@ class ZegoExpressManager {
     _isPlayingStream = false;
   }
 
-  /// Set a new token to keep access ZEGOCLOUD's SDK while onRoomTokenWillExpire has been triggered
-  void renewToken(String roomID, String token) {
-    ZegoExpressEngine.instance.renewToken(roomID, token);
-  }
-
-  /// Set room extra information
-  ///
-  /// You can set some room-related business attributes, such as whether someone is Co-hosting.
-  /// You should call it after joining the room.
-  /// Restrictions: https://docs.zegocloud.com/article/7611
   Future<int> setRoomExtraInfo(String key, String value) async {
     if (_roomID.isEmpty) {
       log('Please login the room first');
@@ -425,13 +376,8 @@ class ZegoExpressManager {
   }
 
   void _playStream(String streamID) {
-    if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo) &&
-        !_mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
-      log("[playStream] media options not contain play video or play audio");
-      return;
-    }
-
-    if (_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
+    if (_mediaOptions.contains(ZegoMediaOption.autoPlayVideo) ||
+        _mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
       ZegoParticipant? participant = _streamDic[streamID];
       if (participant == null) {
         return;
@@ -442,15 +388,12 @@ class ZegoExpressManager {
       }
       ZegoCanvas canvas = ZegoCanvas.view(participant.viewID);
       ZegoExpressEngine.instance.startPlayingStream(streamID, canvas: canvas);
-    } else {
-      ZegoExpressEngine.instance.startPlayingStream(streamID);
-    }
-
-    if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
-      ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
-    }
-    if (!_mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
-      ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
+      if (!_mediaOptions.contains(ZegoMediaOption.autoPlayVideo)) {
+        ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
+      }
+      if (!_mediaOptions.contains(ZegoMediaOption.autoPlayAudio)) {
+        ZegoExpressEngine.instance.mutePlayStreamVideo(streamID, true);
+      }
     }
   }
 
