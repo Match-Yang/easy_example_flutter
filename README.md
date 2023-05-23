@@ -862,3 +862,22 @@ onPressed: () {
   if (_user1Pressed) {
     ZegoExpressManager.shared.leaveRoom();
 ```
+
+
+## How is call invitation works
+
+![](docs/images/firebase_send_call_invitation.png)
+
+1. Device A starts the App to obtain the FCM Token, sends a POST request to https://server/store_fcm_token, and stores the UserID_A and FCM Token on the Server.
+
+2. Device B starts the App to obtain the FCM Token, sends a POST request to https://server/store_fcm_token, and stores the UserID_B and FCM Token on the Server.
+
+3. The App on Device B is killed.
+
+4. Device A sends the call_invitation_data by sending an HTTP request to https://server/send_call_invitation, and calls the loginRoom and startPublishingStream methods of ZegoExpressEngin to start the call.
+
+5. The Server sends a message to Device B via the Firebase messaging.send interface.
+
+6. Device B receives the call_invitation_data via the public void onMessageReceived(@NonNull RemoteMessage remoteMessage) interface and pops up the phone call invitation dialog.
+
+7. After clicking the system notification box, Device B starts the App and uses the call_invitation_data to call the loginRoom and startPublishingStream methods of ZegoExpressEngin to start the call.
